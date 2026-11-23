@@ -2,6 +2,7 @@
 # create_app() factory'si ayarları ve trends client'ı dışarıdan alabilir; böylece testler kendi
 # ayarlarını ve sahte client'ını enjekte eder
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,10 +11,13 @@ from fastapi import FastAPI
 from app import __version__
 from app.core.config import Settings, get_settings
 from app.db.session import create_db_engine, init_db
-from app.routers import health
+from app.routers import health, jobs
+from app.services.job_runner import recover_interrupted_jobs, resume_pending_jobs
 from app.services.trends.base import TrendsClient
 from app.services.trends.live_client import LiveTrendsClient
 from app.services.trends.mock_client import MockTrendsClient
+
+logger = logging.getLogger(__name__)
 
 # Swagger arayüzünde gösterilen açıklama
 APP_DESCRIPTION = (
@@ -58,6 +62,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     # Veritabanı hazır
 
+    # Önceki çalışmadan yarım kalan işleri toparla ve bekleyen kuyruğu sürdür
+    interrupted_count = recover_interrupted_jobs(engine)
+    if interrupted_count:
+        logger.warning("Yarıda kesilmiş %s job failed olarak işaretlendi", interrupted_count)
+    resume_pending_jobs(engine, app.state.trends_client, settings)
+    # Kuyruk kurtarma tamamlandı
+
     yield
 
     # Kapanışta bağlantıları serbest bırak
@@ -85,6 +96,7 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
 
     # Router'ları kaydet
     app.include_router(health.router)
+    app.include_router(jobs.router)
     # Router kaydı tamamlandı
 
     return app

@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
 
+from app.db.models import JobStatus
 from app.dependencies import SessionDep, SettingsDep
-from app.schemas.common import ErrorResponse, HealthResponse
+from app.schemas.common import ErrorResponse, HealthResponse, QueueInfo
+from app.services.job_runner import count_jobs
 
 router = APIRouter(tags=["health"])
 
@@ -17,7 +18,7 @@ STATUS_OK = "ok"
     "/health",
     response_model=HealthResponse,
     summary="Servis durumu",
-    description="Servisin ayakta olduğunu, çalışma modunu ve veritabanı bağlantısını doğrular.",
+    description="Servisin ayakta olduğunu, çalışma modunu, veritabanı bağlantısını ve kuyruk durumunu gösterir.",
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -26,10 +27,13 @@ STATUS_OK = "ok"
     },
 )
 def health(session: SessionDep, settings: SettingsDep) -> HealthResponse:
-    """Veritabanına basit bir sorgu atar ve servis bilgilerini döner."""
-    # Bağlantının gerçekten çalıştığını doğrula
+    """Kuyruk durumunu veritabanından okur ve servis bilgilerini döner."""
+    # Kuyruk sorgusu aynı zamanda veritabanı bağlantısını doğrular
     try:
-        session.exec(select(1))
+        queue = QueueInfo(
+            pending=count_jobs(session, JobStatus.pending),
+            running=count_jobs(session, JobStatus.running),
+        )
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -43,4 +47,5 @@ def health(session: SessionDep, settings: SettingsDep) -> HealthResponse:
         app=settings.APP_NAME,
         mode=settings.TRENDS_MODE,
         database=session.get_bind().dialect.name,
+        queue=queue,
     )

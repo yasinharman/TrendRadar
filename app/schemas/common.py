@@ -1,8 +1,21 @@
 # Birden çok endpoint'in paylaştığı yanıt şemaları
 
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import TrendsMode
+
+T = TypeVar("T")
+
+
+class Page(BaseModel, Generic[T]):
+    """Listeleme endpoint'lerinin ortak zarfı: sayfadaki kayıtlar ve toplam sayı."""
+
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
 
 
 class ErrorResponse(BaseModel):
@@ -10,7 +23,14 @@ class ErrorResponse(BaseModel):
 
     detail: str
 
-    model_config = ConfigDict(json_schema_extra={"example": {"detail": "Veritabanına ulaşılamıyor"}})
+    model_config = ConfigDict(json_schema_extra={"example": {"detail": "Job bulunamadı"}})
+
+
+class QueueInfo(BaseModel):
+    """Tarama kuyruğunun anlık durumu."""
+
+    pending: int
+    running: int
 
 
 class HealthResponse(BaseModel):
@@ -20,9 +40,16 @@ class HealthResponse(BaseModel):
     app: str
     mode: TrendsMode
     database: str
+    queue: QueueInfo
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"status": "ok", "app": "TrendRadar API", "mode": "mock", "database": "sqlite"}
+            "example": {
+                "status": "ok",
+                "app": "TrendRadar API",
+                "mode": "mock",
+                "database": "sqlite",
+                "queue": {"pending": 1, "running": 1},
+            }
         }
     )

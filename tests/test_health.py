@@ -17,6 +17,7 @@ def test_health_returns_service_info(client):
         "app": "TrendRadar API",
         "mode": "mock",
         "database": "sqlite",
+        "queue": {"pending": 0, "running": 0},
     }
 
 
