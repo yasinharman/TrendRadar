@@ -55,7 +55,7 @@ flowchart LR
 
 ## Kurulum
 
-Gereksinim: Python 3.12 (yerel kurulum) veya Docker.
+Gereksinim: Python 3.12 veya üzeri (3.12 ve 3.14 ile test edildi) ya da Docker.
 
 ### Yerel
 
@@ -249,7 +249,6 @@ app/
     └── trends/              # TrendsClient arayüzü, live ve mock client
 tests/                       # pytest testleri ve örnek Google yanıtları
 scripts/demo.sh              # Uçtan uca demo akışı
-legacy/                      # API'ye dönüştürülen özgün scraper
 ```
 
 ## Bilinen sınırlar
