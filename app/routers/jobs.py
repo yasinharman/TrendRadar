@@ -32,8 +32,9 @@ CSV_BOM = "\ufeff"                       # Excel'in UTF-8'i tanıması için (es
 CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 CSV_ESCAPE_CHAR = "'"
 
-# CSV'si indirilebilen (taraması bitmiş ve en az bir sonucu olabilen) durumlar
-EXPORTABLE_STATUSES = (JobStatus.completed, JobStatus.partial)
+# Taraması bitmiş ve en az bir keyword'ü başarılı olan işlerin durumları
+# (CSV export ve diff yalnızca bu işler için yapılabilir)
+SUCCESSFUL_STATUSES = (JobStatus.completed, JobStatus.partial)
 
 
 # --- Yardımcılar ---
@@ -405,7 +406,7 @@ def export_results_csv(
     job = get_job_or_404(session, job_id)
 
     # Yarım veya başarısız taramanın dosyası yanıltıcı olur; yalnızca bitmiş işler indirilebilir
-    if job.status not in EXPORTABLE_STATUSES:
+    if job.status not in SUCCESSFUL_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Job '{job.status.value}' durumunda; CSV yalnızca completed veya partial işler için indirilebilir",

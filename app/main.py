@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.core.config import Settings, get_settings
 from app.db.session import create_db_engine, init_db
-from app.routers import health, jobs
+from app.routers import health, insights, jobs, keywords
 from app.services.job_runner import recover_interrupted_jobs, resume_pending_jobs
 from app.services.trends.base import TrendsClient
 from app.services.trends.live_client import LiveTrendsClient
@@ -97,6 +97,8 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
     # Router'ları kaydet
     app.include_router(health.router)
     app.include_router(jobs.router)
+    app.include_router(keywords.router)
+    app.include_router(insights.router)
     # Router kaydı tamamlandı
 
     return app
