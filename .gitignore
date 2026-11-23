@@ -1,0 +1,19 @@
+# Google hesap oturumu içerir — asla commit edilmez
+cookies.json
+
+# Yerel planlama notları
+TRENDRADAR_PLAN.md
+
+# Ortam değişkenleri ve yerel veritabanı
+.env
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Test ve kapsam çıktıları
+.pytest_cache/
+htmlcov/
+.coverage

@@ -1,0 +1,7 @@
+# Çalışma zamanı bağımlılıkları
+fastapi>=0.165
+uvicorn[standard]>=0.54
+sqlmodel>=0.0.50
+pydantic-settings>=2.16
+requests>=2.34
+psycopg[binary]>=3.3

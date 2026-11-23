@@ -1,0 +1,5 @@
+# Geliştirme ve test bağımlılıkları
+-r requirements.txt
+pytest>=9.2
+pytest-cov>=7.1
+httpx>=0.28
