@@ -245,6 +245,63 @@ curl -u 'admin:güçlü-bir-parola' http://127.0.0.1:8000/jobs       # 200
 Parola her istekte gönderildiği için herkese açık yayında **yalnızca HTTPS** üzerinden kullanın. Yanlış deneme
 sınırı yoktur; uzun ve rastgele bir parola seçin.
 
+## Yayınlama (Coolify)
+
+Uygulamayı kendi sunucunuzda, [Coolify](https://coolify.io) üzerinden bir alan adına bağlı olarak yayınlamak için
+`docker-compose.coolify.yml` dosyası kullanılır. Yerel `docker-compose.yml` dosyasından farkları: port dışarı
+açılmaz (alan adını ve HTTPS sertifikasını Coolify'ın vekil sunucusu yönetir), **parola koruması zorunludur** ve
+veritabanı parolasını Coolify üretir.
+
+Önce mock modda kurup her şeyin çalıştığını doğrulayın, sonra live moda geçin. (Coolify arayüzündeki adlar sürüme
+göre biraz değişebilir.)
+
+**1. Alan adını yönlendirin.** DNS'te kullanacağınız alt alan adı için (ör. `trendradar.alanadiniz.com`) sunucunuzun
+IP adresini gösteren bir `A` kaydı oluşturun.
+
+**2. Kaynağı ekleyin.** Coolify'da yeni kaynak olarak bu Git reposunu ekleyin ve şunları seçin:
+
+| Ayar | Değer |
+|---|---|
+| Build Pack | `Docker Compose` |
+| Docker Compose Location | `/docker-compose.coolify.yml` |
+
+**3. Ortam değişkenlerini girin.**
+
+| Değişken | Değer |
+|---|---|
+| `AUTH_USERNAME` | Giriş için kullanıcı adı (zorunlu) |
+| `AUTH_PASSWORD` | Uzun ve rastgele bir parola (zorunlu) |
+| `TRENDS_MODE` | Şimdilik `mock` olarak bırakın |
+
+İkisi de girilmeden Coolify kurulumu başlatmaz. `SERVICE_PASSWORD_POSTGRES` (veritabanı parolası) kendiliğinden
+üretilir; dokunmanız gerekmez.
+
+**4. Alan adını bağlayın.** `api` servisinin alan adı alanına adresi **port ekiyle** yazın:
+`https://trendradar.alanadiniz.com:8000`. Sondaki `:8000`, vekil sunucuya konteynerin hangi portu dinlediğini
+söyler; ziyaretçiler adresi portsuz (`https://trendradar.alanadiniz.com`) kullanır.
+
+**5. Deploy edin ve doğrulayın.** Adresi açtığınızda tarayıcı kullanıcı adı ve parola sormalı, girişten sonra web
+arayüzü açılmalı ve üst şeritte "Mock mod" yazmalıdır. Bir deneme taraması başlatın.
+
+**6. Live moda geçin.**
+
+1. Cookie'leri [Live mod](#live-mod) bölümündeki gibi tarayıcınızdan JSON olarak dışa aktarın.
+2. Coolify'da kaynağın *Persistent Storage* ekranında `cookies.json` dosyası boş olarak listelenir; dışa aktardığınız
+   JSON'u içeriğine yapıştırıp kaydedin. Dosya repoya ve Docker imajına girmez.
+3. `TRENDS_MODE` değişkenini `live` yapın ve yeniden deploy edin. Üst şeritte "Live mod" yazmalıdır.
+
+Sorun giderme:
+
+- **Konteyner başlamıyor.** Loglarda `TRENDS_MODE=live ile başlatılamadı: ...` satırına bakın: cookie dosyası boş,
+  geçersiz biçimde veya okunamıyor demektir. `TRENDS_MODE=mock` yapıp yeniden deploy ederek uygulamayı geri
+  getirebilirsiniz.
+- **Ürünler `429` hatasıyla `failed` oluyor.** Google, veri merkezi IP adreslerinden gelen istekleri ev
+  bağlantılarına göre daha sık reddeder. Bir süre bekleyip az sayıda ürünle tekrar deneyin; düzelmezse sunucuyu
+  mock modda bırakıp gerçek veriyi yerel kurulumda alın.
+- **Cookie'nin süresi doldu.** Yeni cookie'yi aynı ekrandan yapıştırıp uygulamayı yeniden başlatın.
+- **`404` veya "No available server".** Konteyner sağlık kontrolünden geçmeden vekil sunucu trafik yönlendirmez;
+  alan adındaki `:8000` ekini ve konteyner loglarını kontrol edin.
+
 ## Testler
 
 ```bash
@@ -290,6 +347,8 @@ app/
     └── trends/              # TrendsClient arayüzü, live ve mock client
 tests/                       # pytest testleri ve örnek Google yanıtları
 scripts/demo.sh              # Uçtan uca demo akışı
+docker-compose.yml           # Yerel kurulum: API + PostgreSQL
+docker-compose.coolify.yml   # Coolify üzerinde yayın
 ```
 
 ## Bilinen sınırlar

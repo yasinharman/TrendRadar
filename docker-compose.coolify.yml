@@ -1,0 +1,61 @@
+# TrendRadar — Coolify üzerinde yayın (Docker Compose build pack)
+# Kurulum adımları: README.md → "Yayınlama (Coolify)"
+#
+# Bu dosya yalnızca Coolify içindir; yerelde çalıştırmak için docker-compose.yml kullanın.
+# Farkları: port dışarı açılmaz (alan adını ve HTTPS'i Coolify'ın vekil sunucusu yönetir),
+# parola koruması zorunludur ve veritabanı parolasını Coolify üretir.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: trendradar
+      # SERVICE_PASSWORD_*: Coolify ilk kurulumda rastgele üretir ve sonraki kurulumlarda aynı değeri kullanır
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      POSTGRES_DB: trendradar
+    volumes:
+      # Veriler yeniden kurulumlarda korunur
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trendradar -d trendradar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      # Önce mock ile kurulumu doğrulayın; gerçek veri için Coolify'da "live" yapın (cookie gerekir)
+      TRENDS_MODE: ${TRENDS_MODE:-mock}
+      DATABASE_URL: postgresql+psycopg://trendradar:${SERVICE_PASSWORD_POSTGRES}@db:5432/trendradar
+      # Uygulama herkese açık adreste çalıştığı için ikisi de zorunludur; boşsa Coolify kurulumu başlatmaz
+      AUTH_USERNAME: ${AUTH_USERNAME:?}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?}
+      # Vekil sunucunun bildirdiği özgün protokole (https) güvenilir; böylece uygulamanın ürettiği
+      # yönlendirme adresleri https ile başlar. Konteynere yalnızca vekil eriştiği için güvenlidir
+      FORWARDED_ALLOW_IPS: "*"
+    expose:
+      # Yalnızca Coolify'ın vekil sunucusu erişir; alan adı "https://<alan-adı>:8000" biçiminde girilir
+      - "8000"
+    volumes:
+      # Google hesap oturumu (yalnızca live modda okunur). Dosya repoda ve imajda yoktur:
+      # Coolify boş olarak oluşturur, içeriği "Persistent Storage" ekranından yapıştırılır.
+      # is_directory Coolify'a özgü bir alandır; yolun dizin değil dosya olduğunu bildirir
+      - type: bind
+        source: ./cookies.json
+        target: /app/cookies.json
+        is_directory: false
+    depends_on:
+      # Veritabanı bağlantı kabul etmeden API başlatılmaz
+      db:
+        condition: service_healthy
+    healthcheck:
+      # /health parola istemez; sağlıksız konteynere Coolify trafik yönlendirmez
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:

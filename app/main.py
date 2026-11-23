@@ -52,7 +52,8 @@ def build_trends_client(settings: Settings) -> TrendsClient:
     # Live modda cookie dosyası yoksa veya geçersizse uygulama açık bir mesajla başlamaz (fail-fast)
     try:
         return LiveTrendsClient(settings)
-    except (FileNotFoundError, ValueError) as e:
+    # OSError: dosya yok, okunamıyor veya dosya yerine dizin; ValueError: içerik geçersiz
+    except (OSError, ValueError) as e:
         raise RuntimeError(
             f"TRENDS_MODE=live ile başlatılamadı: {e} "
             "Cookie olmadan çalıştırmak için TRENDS_MODE=mock kullanın."

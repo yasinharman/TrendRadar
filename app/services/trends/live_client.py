@@ -71,11 +71,20 @@ def load_cookies(path: str) -> str:
     # Dosya kontrolü tamamlandı
 
     # JSON oku ve cookie listesini header string'e dönüştür
-    with cookie_path.open("r", encoding="utf-8") as f:
-        cookies = json.load(f)
-    cookie_pairs = [f"{c['name']}={c['value']}" for c in cookies if "name" in c and "value" in c]
+    # Hata mesajına dosyanın içeriği asla yazılmaz (Google hesap oturumu içerir)
+    invalid_message = f"Cookie dosyası boş veya geçersiz format: {path}"
+    try:
+        with cookie_path.open("r", encoding="utf-8") as f:
+            cookies = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(invalid_message) from e
+    if not isinstance(cookies, list):
+        raise ValueError(invalid_message)
+    cookie_pairs = [
+        f"{c['name']}={c['value']}" for c in cookies if isinstance(c, dict) and "name" in c and "value" in c
+    ]
     if not cookie_pairs:
-        raise ValueError(f"Cookie dosyası boş veya geçersiz format: {path}")
+        raise ValueError(invalid_message)
     # Cookie string üretimi tamamlandı
     return "; ".join(cookie_pairs)
 

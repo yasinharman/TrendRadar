@@ -61,6 +61,30 @@ def test_live_mode_with_invalid_cookie_fails_fast(tmp_path):
         build_trends_client(settings)
 
 
+@pytest.mark.parametrize("content", ["", "bu json değil", '{"name": "SID", "value": "x"}', '["SID", 42]'])
+def test_live_mode_with_malformed_cookie_file_fails_fast(tmp_path, content):
+    """Boş, JSON olmayan veya cookie listesi içermeyen dosya anlaşılır bir mesajla reddedilir."""
+    cookie_file = tmp_path / "cookies.json"
+    cookie_file.write_text(content, encoding="utf-8")
+    settings = Settings(_env_file=None, TRENDS_MODE="live", COOKIE_FILE=str(cookie_file))
+
+    with pytest.raises(RuntimeError, match="boş veya geçersiz format") as error:
+        build_trends_client(settings)
+
+    # Dosyanın içeriği hata mesajına sızmaz
+    assert content == "" or content not in str(error.value)
+
+
+def test_live_mode_with_directory_instead_of_cookie_file_fails_fast(tmp_path):
+    """Cookie yolu bir dizinse (yanlış bağlanmış volume) uygulama açık bir mesajla başlamaz."""
+    cookie_dir = tmp_path / "cookies.json"
+    cookie_dir.mkdir()
+    settings = Settings(_env_file=None, TRENDS_MODE="live", COOKIE_FILE=str(cookie_dir))
+
+    with pytest.raises(RuntimeError, match="TRENDS_MODE=live ile başlatılamadı"):
+        build_trends_client(settings)
+
+
 def test_injected_client_is_used(client, trends_client):
     """create_app'e verilen client aynen kullanılır (testler stable mock enjekte eder)."""
     assert client.app.state.trends_client is trends_client
