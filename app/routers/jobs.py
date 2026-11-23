@@ -1,10 +1,14 @@
 # Tarama işi (job) endpoint'leri: oluşturma, listeleme, detay ve silme
 # Tarama uzun sürdüğü için istek içinde yapılmaz: iş kuyruğa alınır, 202 dönülür, ilerleme sorgulanır
 
+import csv
+import io
+from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
-from sqlalchemy import func
+from fastapi.responses import StreamingResponse
+from sqlalchemy import case, func
 from sqlmodel import Session, select
 
 from app.core.config import Settings
@@ -12,6 +16,7 @@ from app.db.models import JobKeyword, JobStatus, QueryResult, QueryType, ScrapeJ
 from app.dependencies import EngineDep, PaginationDep, SessionDep, SettingsDep, TrendsClientDep
 from app.schemas.common import ErrorResponse, Page
 from app.schemas.jobs import JobCreate, JobDetail, JobRead, KeywordSummary
+from app.schemas.results import QueryResultRead, ResultFilters
 from app.services.job_runner import get_queue_positions, process_queue
 from app.services.trends.base import normalize_keyword
 
@@ -19,6 +24,16 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 # Swagger'da tekrar kullanılan hata yanıtı tanımları
 NOT_FOUND_RESPONSE = {status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Job bulunamadı"}}
+
+# CSV export ayarları
+CSV_MEDIA_TYPE = "text/csv"
+CSV_COLUMNS = ["seed_keyword", "type", "rank", "query", "value", "is_breakout"]
+CSV_BOM = "\ufeff"                       # Excel'in UTF-8'i tanıması için (eski scraper'daki utf-8-sig davranışı)
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+CSV_ESCAPE_CHAR = "'"
+
+# CSV'si indirilebilen (taraması bitmiş ve en az bir sonucu olabilen) durumlar
+EXPORTABLE_STATUSES = (JobStatus.completed, JobStatus.partial)
 
 
 # --- Yardımcılar ---
@@ -78,6 +93,93 @@ def count_results_by_keyword(session: Session, job_id: int) -> dict[tuple[int, Q
         .group_by(QueryResult.job_keyword_id, QueryResult.type)
     ).all()
     return {(keyword_id, query_type): count for keyword_id, query_type, count in rows}
+
+
+def build_results_query(job_id: int, filters: ResultFilters):
+    """Bir job'ın sonuçlarını seed keyword'üyle birlikte seçen, filtrelenmiş ve sıralanmış sorguyu kurar."""
+    # Her sonuç satırı, ait olduğu seed keyword'ün yazılışıyla birlikte seçilir
+    query = (
+        select(JobKeyword.keyword, QueryResult)
+        .join(JobKeyword, QueryResult.job_keyword_id == JobKeyword.id)
+        .where(JobKeyword.job_id == job_id)
+    )
+    # Temel sorgu hazır
+
+    # Verilen filtreleri uygula
+    if filters.type is not None:
+        query = query.where(QueryResult.type == filters.type)
+    if filters.keyword is not None:
+        query = query.where(JobKeyword.keyword_normalized == normalize_keyword(filters.keyword))
+    if filters.min_value is not None:
+        query = query.where(QueryResult.value >= filters.min_value)
+    if filters.breakout_only:
+        query = query.where(QueryResult.is_breakout.is_(True))
+    if filters.search:
+        # autoescape: aranan metindeki % ve _ karakterleri joker sayılmaz
+        query = query.where(func.lower(QueryResult.query).contains(filters.search.lower(), autoescape=True))
+    # Filtreler uygulandı
+
+    # Sıralama: istekteki keyword sırası, önce top sonra rising, sonra Google'ın sırası
+    # (type kolonu metin olarak sıralanırsa "rising" öne geçer; bu yüzden açık sıra verilir)
+    type_order = case((QueryResult.type == QueryType.top, 0), else_=1)
+    return query.order_by(JobKeyword.position, type_order, QueryResult.rank)
+
+
+def to_result_read(seed_keyword: str, result: QueryResult) -> QueryResultRead:
+    """Sonuç satırını seed keyword'üyle birlikte yanıt şemasına çevirir."""
+    return QueryResultRead(
+        seed_keyword=seed_keyword,
+        type=result.type,
+        rank=result.rank,
+        query=result.query,
+        value=result.value,
+        is_breakout=result.is_breakout,
+    )
+
+
+def csv_safe(text: str) -> str:
+    """Excel'in formül olarak çalıştırabileceği hücreleri etkisizleştirir (CSV injection önlemi).
+
+    Sorgu metinleri dışarıdan (Google'dan ve kullanıcıdan) gelir; "=", "+", "-" veya "@" ile
+    başlayan bir hücrenin başına tek tırnak konur, böylece Excel onu düz metin olarak gösterir.
+    """
+    if text.startswith(CSV_FORMULA_PREFIXES):
+        return CSV_ESCAPE_CHAR + text
+    return text
+
+
+def generate_csv(rows: list[QueryResultRead]) -> Iterator[str]:
+    """Sonuçları başlık satırıyla birlikte satır satır CSV metni olarak üretir."""
+    # Her satır aynı tampona yazılıp gönderilir, sonra tampon boşaltılır
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    def flush() -> str:
+        text = buffer.getvalue()
+        buffer.seek(0)
+        buffer.truncate()
+        return text
+    # CSV yazıcısı hazır
+
+    # BOM ve başlık satırı
+    writer.writerow(CSV_COLUMNS)
+    yield CSV_BOM + flush()
+    # Başlık gönderildi
+
+    # Veri satırları
+    for row in rows:
+        writer.writerow(
+            [
+                csv_safe(row.seed_keyword),
+                row.type.value,
+                row.rank,
+                csv_safe(row.query),
+                row.value,
+                str(row.is_breakout).lower(),
+            ]
+        )
+        yield flush()
+    # Tüm satırlar gönderildi
 
 
 # --- Endpoint'ler ---
@@ -230,3 +332,93 @@ def delete_job(job_id: int, session: SessionDep) -> None:
 
     session.delete(job)
     session.commit()
+
+
+@router.get(
+    "/{job_id}/results",
+    response_model=Page[QueryResultRead],
+    summary="İşin sonuçlarını getir",
+    description=(
+        "İşin bulduğu top ve rising aramaları filtreleyerek döner. Sıralama: istekteki keyword sırası, "
+        "önce top sonra rising, sonra Google'ın sırası.\n\n"
+        "İş henüz bitmediyse o ana kadar biriken sonuçlar döner (hata değildir)."
+    ),
+    responses=NOT_FOUND_RESPONSE,
+)
+def list_results(
+    job_id: int,
+    session: SessionDep,
+    pagination: PaginationDep,
+    filters: Annotated[ResultFilters, Query()],
+) -> Page[QueryResultRead]:
+    """Filtrelenmiş ve sayfalanmış sonuç listesini döner."""
+    job = get_job_or_404(session, job_id)
+
+    # Toplam sayıyı ve istenen sayfayı aynı filtrelerle getir
+    query = build_results_query(job.id, filters)
+    total = session.exec(select(func.count()).select_from(query.order_by(None).subquery())).one()
+    rows = session.exec(query.offset(pagination.offset).limit(pagination.limit)).all()
+    # Sayfa getirildi
+
+    return Page[QueryResultRead](
+        items=[to_result_read(seed_keyword, result) for seed_keyword, result in rows],
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
+
+
+@router.get(
+    "/{job_id}/export.csv",
+    response_class=StreamingResponse,
+    summary="Sonuçları CSV olarak indir",
+    description=(
+        "İşin tüm sonuçlarını Excel uyumlu (UTF-8 BOM'lu) CSV dosyası olarak indirir. "
+        "`type` ile yalnızca top veya yalnızca rising sonuçlar alınabilir.\n\n"
+        "Kolonlar: `seed_keyword, type, rank, query, value, is_breakout`"
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "CSV dosyası",
+            "content": {
+                CSV_MEDIA_TYPE: {
+                    "example": (
+                        "seed_keyword,type,rank,query,value,is_breakout\r\n"
+                        "Camera Bags,top,1,camera bag,100,false\r\n"
+                        "Camera Bags,rising,1,mindshift camera bags,800,false\r\n"
+                    )
+                }
+            },
+        },
+        **NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "İş henüz tamamlanmadı veya başarısız oldu"},
+    },
+)
+def export_results_csv(
+    job_id: int,
+    session: SessionDep,
+    result_type: Annotated[
+        QueryType | None, Query(alias="type", description="Yalnızca top veya yalnızca rising sonuçlar.")
+    ] = None,
+) -> StreamingResponse:
+    """Tamamlanmış bir job'ın sonuçlarını CSV olarak akıtır."""
+    job = get_job_or_404(session, job_id)
+
+    # Yarım veya başarısız taramanın dosyası yanıltıcı olur; yalnızca bitmiş işler indirilebilir
+    if job.status not in EXPORTABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Job '{job.status.value}' durumunda; CSV yalnızca completed veya partial işler için indirilebilir",
+        )
+    # Durum kontrolü tamamlandı
+
+    # Satırlar, veritabanı oturumu kapanmadan önce belleğe alınır (bir job en fazla birkaç yüz satırdır)
+    query = build_results_query(job.id, ResultFilters(type=result_type))
+    rows = [to_result_read(seed_keyword, result) for seed_keyword, result in session.exec(query).all()]
+    # Satırlar hazır
+
+    return StreamingResponse(
+        generate_csv(rows),
+        media_type=CSV_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="trendradar_job_{job.id}.csv"'},
+    )
