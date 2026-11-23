@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
+from app.core.auth import BasicAuthMiddleware
 from app.core.config import Settings, get_settings
 from app.db.session import create_db_engine, init_db
 from app.routers import health, insights, jobs, keywords
@@ -105,6 +106,11 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
     app.state.settings = settings
     app.state.trends_client = trends_client
     # Uygulama nesnesi hazır
+
+    # Parola koruması yalnızca kullanıcı adı ve parola ayarlandıysa devreye girer
+    if settings.auth_enabled:
+        app.add_middleware(BasicAuthMiddleware, username=settings.AUTH_USERNAME, password=settings.AUTH_PASSWORD)
+    # Koruma katmanı hazır
 
     # Router'ları kaydet
     app.include_router(health.router)

@@ -9,6 +9,8 @@ from app.core.config import Settings, get_settings
 EXPECTED_DEFAULTS = {
     "APP_NAME": "TrendRadar API",
     "TRENDS_MODE": "mock",
+    "AUTH_USERNAME": "",
+    "AUTH_PASSWORD": "",
     "DATABASE_URL": "sqlite:///./trendradar.db",
     "COOKIE_FILE": "cookies.json",
     "HL": "tr-TR",
@@ -75,6 +77,8 @@ def test_env_file_is_read(tmp_path):
         {"MAX_RETRIES": 0},
         {"SLEEP_MIN": 20, "SLEEP_MAX": 10},
         {"DEFAULT_PAGE_SIZE": 500, "MAX_PAGE_SIZE": 200},
+        {"AUTH_USERNAME": "admin"},
+        {"AUTH_PASSWORD": "gizli"},
     ],
 )
 def test_invalid_values_are_rejected(overrides):

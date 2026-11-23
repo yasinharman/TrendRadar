@@ -202,12 +202,29 @@ dosyasındadır. En sık değiştirilenler:
 | Ayar | Varsayılan | Açıklama |
 |---|---|---|
 | `TRENDS_MODE` | `mock` | `mock` veya `live` |
+| `AUTH_USERNAME`, `AUTH_PASSWORD` | *(boş)* | İkisi de doluysa parola koruması açılır (aşağıya bakın) |
 | `DATABASE_URL` | `sqlite:///./trendradar.db` | Docker'da `postgresql+psycopg://...` |
 | `DEFAULT_GEO` | *(boş)* | İstekte ülke verilmezse kullanılır; boş = tüm dünya |
 | `DEFAULT_TIMEFRAME` | `today 1-m` | `now 7-d`, `today 1-m`, `today 3-m`, `today 12-m`, `today 5-y` |
 | `BREAKOUT_THRESHOLD` | `5000` | Rising değeri bu eşik ve üzerindeyse breakout sayılır |
 | `MAX_KEYWORDS_PER_JOB` | `30` | Tek taramadaki en fazla ürün sayısı |
 | `MOCK_DELAY_SECONDS` | `0.5` | Mock modda ürün başına bekleme; ilerlemeyi izlemek için artırılabilir |
+
+### Parola koruması
+
+Varsayılan olarak koruma kapalıdır. `AUTH_USERNAME` ve `AUTH_PASSWORD` birlikte verildiğinde API'nin tamamı ve
+Swagger arayüzü kullanıcı adı + parola ister (HTTP Basic Auth); tarayıcı giriş penceresini kendisi açar. Yalnızca
+`/health` açık kalır, böylece konteyner sağlık kontrolü parolasız çalışır.
+
+```bash
+AUTH_USERNAME=admin AUTH_PASSWORD='güçlü-bir-parola' uvicorn app.main:app
+
+curl -i http://127.0.0.1:8000/jobs                                # 401
+curl -u 'admin:güçlü-bir-parola' http://127.0.0.1:8000/jobs       # 200
+```
+
+Parola her istekte gönderildiği için herkese açık yayında **yalnızca HTTPS** üzerinden kullanın. Yanlış deneme
+sınırı yoktur; uzun ve rastgele bir parola seçin.
 
 ## Testler
 
@@ -229,6 +246,7 @@ sahte bir HTTP oturumuyla sınanır.
 | `test_live_client_parsing.py` | Google yanıtlarının ayrıştırılması, `429` ve ağ hatalarında yeniden deneme |
 | `test_mock_client.py` | Mock verinin tutarlılığı ve tekrar taramalardaki oynama |
 | `test_error_codes.py`, `test_openapi.py` | Her endpoint'in hata kodları ve Swagger belgesinin eksiksizliği |
+| `test_auth.py` | Parola koruması: başlığın çözülmesi, 401 yanıtı, açık kalan `/health` |
 | `test_config.py`, `test_models.py`, `test_health.py`, `test_startup.py` | Ayarlar, veri modeli, sağlık kontrolü, mod seçimi |
 
 ## Proje yapısı
@@ -237,7 +255,9 @@ sahte bir HTTP oturumuyla sınanır.
 app/
 ├── main.py                  # create_app() fabrikası, açılış/kapanış, router kaydı
 ├── dependencies.py          # Oturum, ayar, client ve sayfalama bağımlılıkları
-├── core/config.py           # Settings (pydantic-settings)
+├── core/
+│   ├── config.py            # Settings (pydantic-settings)
+│   └── auth.py              # Parola koruması (HTTP Basic Auth)
 ├── db/
 │   ├── models.py            # ScrapeJob → JobKeyword → QueryResult
 │   └── session.py           # Engine oluşturma, tabloların hazırlanması
@@ -253,8 +273,10 @@ scripts/demo.sh              # Uçtan uca demo akışı
 
 ## Bilinen sınırlar
 
-- **Kimlik doğrulama yok.** API'yi herkese açık bir adreste yayınlamayın; Docker kurulumu bu yüzden portu yalnızca
-  `127.0.0.1` üzerinde açar.
+- **Koruma varsayılan olarak kapalıdır.** `AUTH_USERNAME` ve `AUTH_PASSWORD` ayarlanmadan API'yi herkese açık bir
+  adreste yayınlamayın; Docker kurulumu bu yüzden portu yalnızca `127.0.0.1` üzerinde açar.
+- **Tek kullanıcı, deneme sınırı yok.** Parola koruması tek bir kullanıcı adı ve parola ile çalışır; yanlış denemeleri
+  sınırlamaz.
 - **Tek süreç.** Tarama kuyruğunun kilidi süreç içinde olduğu için uygulama tek worker ile çalıştırılmalıdır
   (`uvicorn --workers` kullanmayın).
 - **Taramalar yalnızca elle başlatılır.** Zamanlanmış (periyodik) tarama yoktur.

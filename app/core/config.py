@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     TRENDS_MODE: TrendsMode = "mock"
     # Uygulama ayarları tanımlandı
 
+    # Parola koruması (HTTP Basic Auth). İkisi de boşsa koruma kapalıdır (yerel geliştirme);
+    # herkese açık bir adreste yayınlarken ikisi de verilmelidir
+    AUTH_USERNAME: str = ""
+    AUTH_PASSWORD: str = ""
+    # Parola koruması ayarları tanımlandı
+
     # Veritabanı (Docker'da postgresql+psycopg://...)
     DATABASE_URL: str = "sqlite:///./trendradar.db"
     # Veritabanı ayarı tanımlandı
@@ -78,7 +84,17 @@ class Settings(BaseSettings):
         if self.DEFAULT_PAGE_SIZE > self.MAX_PAGE_SIZE:
             raise ValueError("DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE değerinden büyük olamaz")
         # Aralık kontrolleri tamamlandı
+
+        # Yarım tanımlı koruma sessizce kapalı kalmasın: kullanıcı adı ve parola birlikte verilir
+        if bool(self.AUTH_USERNAME) != bool(self.AUTH_PASSWORD):
+            raise ValueError("AUTH_USERNAME ve AUTH_PASSWORD birlikte verilmelidir")
+        # Parola koruması kontrolü tamamlandı
         return self
+
+    @property
+    def auth_enabled(self) -> bool:
+        """Parola korumasının açık olup olmadığını döner."""
+        return bool(self.AUTH_USERNAME and self.AUTH_PASSWORD)
 
 
 @lru_cache
