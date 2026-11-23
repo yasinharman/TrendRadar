@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from app.core.config import Settings
 from app.main import create_app
+from app.services.trends.mock_client import MockTrendsClient
 
 
 @pytest.fixture
@@ -19,9 +20,15 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def client(settings: Settings) -> Iterator[TestClient]:
+def trends_client(settings: Settings) -> MockTrendsClient:
+    """Aynı keyword için her zaman aynı sonucu veren mock client."""
+    return MockTrendsClient(settings, stable=True)
+
+
+@pytest.fixture
+def client(settings: Settings, trends_client: MockTrendsClient) -> Iterator[TestClient]:
     """Test ayarlarıyla kurulmuş uygulamaya istek atan istemci; `with` bloğu lifespan'i çalıştırır."""
-    with TestClient(create_app(settings)) as test_client:
+    with TestClient(create_app(settings, trends_client=trends_client)) as test_client:
         yield test_client
 
 
