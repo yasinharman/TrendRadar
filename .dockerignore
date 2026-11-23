@@ -1,0 +1,22 @@
+# İmaja girmemesi gerekenler
+
+# Google hesap oturumu — imaja asla kopyalanmaz; live modda volume olarak bağlanır
+cookies.json
+
+# Yerel ayarlar ve veritabanı
+.env
+*.db
+
+# Sürüm kontrolü, sanal ortam ve önbellekler
+.git
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+htmlcov
+.coverage
+
+# Çalışma zamanında gerekmeyenler
+tests
+legacy
+TRENDRADAR_PLAN.md
