@@ -6,15 +6,22 @@ import io
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func
 from sqlmodel import Session, select
 
 from app.core.config import Settings
 from app.db.models import JobKeyword, JobStatus, QueryResult, QueryType, ScrapeJob
-from app.dependencies import EngineDep, PaginationDep, SessionDep, SettingsDep, TrendsClientDep
-from app.schemas.common import ErrorResponse, Page
+from app.dependencies import (
+    EngineDep,
+    PaginationDep,
+    SessionDep,
+    SettingsDep,
+    TrendsClientDep,
+    validation_error,
+)
+from app.schemas.common import Page, error_response
 from app.schemas.jobs import JobCreate, JobDetail, JobRead, KeywordSummary
 from app.schemas.results import QueryResultRead, ResultFilters
 from app.services.job_runner import get_queue_positions, process_queue
@@ -22,8 +29,19 @@ from app.services.trends.base import normalize_keyword
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-# Swagger'da tekrar kullanılan hata yanıtı tanımları
-NOT_FOUND_RESPONSE = {status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Job bulunamadı"}}
+# Yol parametresi: tüm /jobs/{job_id} endpoint'lerinde aynı açıklamayla kullanılır
+JobIdPath = Annotated[int, Path(description="İşin id'si (POST /jobs yanıtındaki `id`).")]
+
+# Hata mesajları
+JOB_NOT_FOUND_MESSAGE = "Job bulunamadı"
+RUNNING_JOB_DELETE_MESSAGE = "Çalışan job silinemez"
+
+# Swagger'da tekrar kullanılan hata yanıtı tanımı
+NOT_FOUND_RESPONSE = {status.HTTP_404_NOT_FOUND: error_response("Job bulunamadı", JOB_NOT_FOUND_MESSAGE)}
+
+# Sonuç sıralamasında türlerin sırası: önce top, sonra rising
+TOP_SORT_ORDER = 0
+RISING_SORT_ORDER = 1
 
 # CSV export ayarları
 CSV_MEDIA_TYPE = "text/csv"
@@ -43,7 +61,7 @@ def get_job_or_404(session: Session, job_id: int) -> ScrapeJob:
     """Job'ı getirir; yoksa 404 fırlatır."""
     job = session.get(ScrapeJob, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job bulunamadı")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
     return job
 
 
@@ -51,18 +69,16 @@ def check_keyword_limits(keywords: list[str], settings: Settings) -> None:
     """Keyword sayısını ve uzunluğunu ayarlardaki sınırlarla karşılaştırır; aşılırsa 422 fırlatır."""
     # Adet sınırı (tekrarlar temizlendikten sonraki sayıya uygulanır)
     if len(keywords) > settings.MAX_KEYWORDS_PER_JOB:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Bir taramada en fazla {settings.MAX_KEYWORDS_PER_JOB} keyword gönderilebilir",
+        raise validation_error(
+            "body", "keywords", f"Bir taramada en fazla {settings.MAX_KEYWORDS_PER_JOB} keyword gönderilebilir"
         )
     # Adet kontrolü tamamlandı
 
     # Uzunluk sınırı
     for keyword in keywords:
         if len(keyword) > settings.MAX_KEYWORD_LENGTH:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"Keyword en fazla {settings.MAX_KEYWORD_LENGTH} karakter olabilir",
+            raise validation_error(
+                "body", "keywords", f"Keyword en fazla {settings.MAX_KEYWORD_LENGTH} karakter olabilir"
             )
     # Uzunluk kontrolü tamamlandı
 
@@ -122,7 +138,7 @@ def build_results_query(job_id: int, filters: ResultFilters):
 
     # Sıralama: istekteki keyword sırası, önce top sonra rising, sonra Google'ın sırası
     # (type kolonu metin olarak sıralanırsa "rising" öne geçer; bu yüzden açık sıra verilir)
-    type_order = case((QueryResult.type == QueryType.top, 0), else_=1)
+    type_order = case((QueryResult.type == QueryType.top, TOP_SORT_ORDER), else_=RISING_SORT_ORDER)
     return query.order_by(JobKeyword.position, type_order, QueryResult.rank)
 
 
@@ -156,6 +172,7 @@ def generate_csv(rows: list[QueryResultRead]) -> Iterator[str]:
     writer = csv.writer(buffer)
 
     def flush() -> str:
+        """Tampondaki metni döner ve tamponu boşaltır."""
         text = buffer.getvalue()
         buffer.seek(0)
         buffer.truncate()
@@ -200,7 +217,6 @@ def generate_csv(rows: list[QueryResultRead]) -> Iterator[str]:
             "description": "İş kuyruğa alındı",
             "headers": {"Location": {"description": "Oluşturulan işin adresi", "schema": {"type": "string"}}},
         },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Geçersiz keyword listesi, ülke kodu veya zaman aralığı"},
     },
 )
 def create_job(
@@ -287,7 +303,7 @@ def list_jobs(
     description="İşin durumunu, ilerlemesini ve her keyword için sonuç sayılarını veya hata nedenini döner.",
     responses=NOT_FOUND_RESPONSE,
 )
-def get_job(job_id: int, session: SessionDep) -> JobDetail:
+def get_job(job_id: JobIdPath, session: SessionDep) -> JobDetail:
     """Job bilgilerini keyword bazında özetle birlikte döner."""
     job = get_job_or_404(session, job_id)
 
@@ -319,16 +335,16 @@ def get_job(job_id: int, session: SessionDep) -> JobDetail:
     ),
     responses={
         **NOT_FOUND_RESPONSE,
-        status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "İş şu anda çalışıyor"},
+        status.HTTP_409_CONFLICT: error_response("İş şu anda çalışıyor", RUNNING_JOB_DELETE_MESSAGE),
     },
 )
-def delete_job(job_id: int, session: SessionDep) -> None:
+def delete_job(job_id: JobIdPath, session: SessionDep) -> None:
     """Çalışmayan bir job'ı tüm bağlı kayıtlarıyla siler."""
     job = get_job_or_404(session, job_id)
 
     # Çalışan job silinirse worker'ın yazdığı kayıtlar sahipsiz kalır
     if job.status == JobStatus.running:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Çalışan job silinemez")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=RUNNING_JOB_DELETE_MESSAGE)
     # Durum kontrolü tamamlandı
 
     session.delete(job)
@@ -347,7 +363,7 @@ def delete_job(job_id: int, session: SessionDep) -> None:
     responses=NOT_FOUND_RESPONSE,
 )
 def list_results(
-    job_id: int,
+    job_id: JobIdPath,
     session: SessionDep,
     pagination: PaginationDep,
     filters: Annotated[ResultFilters, Query()],
@@ -392,11 +408,14 @@ def list_results(
             },
         },
         **NOT_FOUND_RESPONSE,
-        status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "İş henüz tamamlanmadı veya başarısız oldu"},
+        status.HTTP_409_CONFLICT: error_response(
+            "İş henüz tamamlanmadı veya başarısız oldu",
+            "Job 'running' durumunda; CSV yalnızca completed veya partial işler için indirilebilir",
+        ),
     },
 )
 def export_results_csv(
-    job_id: int,
+    job_id: JobIdPath,
     session: SessionDep,
     result_type: Annotated[
         QueryType | None, Query(alias="type", description="Yalnızca top veya yalnızca rising sonuçlar.")

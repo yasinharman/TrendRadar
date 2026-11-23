@@ -1,11 +1,23 @@
 # Veritabanı modellerinin varsayılanları, ilişkileri ve zaman damgası davranışı
 
+import threading
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import text
-from sqlmodel import select
+from sqlalchemy.pool import QueuePool, StaticPool
+from sqlmodel import Session, select
 
-from app.db.models import JobKeyword, JobStatus, KeywordStatus, QueryResult, QueryType, ScrapeJob
+from app.db.models import (
+    JobKeyword,
+    JobStatus,
+    KeywordStatus,
+    QueryResult,
+    QueryType,
+    ScrapeJob,
+    UTCDateTime,
+)
+from app.db.session import create_db_engine, init_db
 
 
 def make_job(**overrides) -> ScrapeJob:
@@ -57,6 +69,61 @@ def test_timestamps_are_stored_and_returned_as_utc(session):
     assert loaded.started_at == datetime(2026, 11, 23, 13, 30, tzinfo=timezone.utc)
     assert loaded.started_at.utcoffset() == timedelta(0)
     assert loaded.created_at.utcoffset() == timedelta(0)
+
+
+def test_utc_datetime_normalizes_values_from_any_database():
+    """PostgreSQL saat dilimli, SQLite saat dilimsiz değer döndürür; ikisi de UTC'ye çevrilir."""
+    column_type = UTCDateTime()
+    istanbul = timezone(timedelta(hours=3))
+    expected = datetime(2026, 11, 23, 13, 30, tzinfo=timezone.utc)
+
+    from_postgres = column_type.process_result_value(datetime(2026, 11, 23, 16, 30, tzinfo=istanbul), dialect=None)
+    from_sqlite = column_type.process_result_value(datetime(2026, 11, 23, 13, 30), dialect=None)
+
+    assert from_postgres == expected and from_postgres.utcoffset() == timedelta(0)
+    assert from_sqlite == expected and from_sqlite.utcoffset() == timedelta(0)
+    assert column_type.process_result_value(None, dialect=None) is None
+    assert column_type.process_bind_param(None, dialect=None) is None
+
+
+@pytest.mark.parametrize(
+    "url, expected_dialect, expected_pool",
+    [
+        ("sqlite://", "sqlite", StaticPool),
+        ("sqlite:///:memory:", "sqlite", StaticPool),
+        ("postgresql+psycopg://user:secret@localhost:5432/trendradar", "postgresql", QueuePool),
+    ],
+)
+def test_create_db_engine_picks_settings_for_database(url, expected_dialect, expected_pool):
+    """Bellek içi SQLite tek bağlantı paylaşır; PostgreSQL ek ayar almaz. Engine kurulurken bağlanılmaz."""
+    engine = create_db_engine(url)
+
+    assert engine.dialect.name == expected_dialect
+    assert isinstance(engine.pool, expected_pool)
+
+
+def test_file_based_sqlite_engine_allows_other_threads(tmp_path):
+    """Dosya tabanlı SQLite, worker thread'inin de kullanabilmesi için thread kontrolü kapalı açılır."""
+    engine = create_db_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    init_db(engine)
+    errors: list[Exception] = []
+
+    def query_from_other_thread():
+        try:
+            with Session(engine) as other_session:
+                other_session.exec(select(ScrapeJob)).all()
+        except Exception as error:  # thread içindeki hata ana thread'e taşınır
+            errors.append(error)
+
+    # Bağlantıyı ana thread'de aç, sonra aynı havuzu başka thread'den kullan
+    with Session(engine) as main_session:
+        main_session.exec(select(ScrapeJob)).all()
+    worker = threading.Thread(target=query_from_other_thread)
+    worker.start()
+    worker.join()
+    engine.dispose()
+
+    assert errors == []
 
 
 def test_status_is_stored_as_lowercase_value(session):

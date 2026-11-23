@@ -43,6 +43,9 @@ EXPLORE_URL = "https://trends.google.com/trends/api/explore"
 RELATED_SEARCHES_URL = "https://trends.google.com/trends/api/widgetdata/relatedsearches"
 # Endpoint URL'leri tanımlandı
 
+# Explore isteğinde kategori filtresi: 0 = tüm kategoriler
+ALL_CATEGORIES = 0
+
 # Yanıt biçimine ait sabitler
 XSSI_PREFIX = ")]}'"                      # Google yanıtlarının başındaki koruma öneki
 RELATED_QUERIES_WIDGET_ID = "RELATED_QUERIES"
@@ -146,7 +149,7 @@ class LiveTrendsClient:
         # Explore request gövdesini hazırla
         req_body = {
             "comparisonItem": [{"keyword": keyword_normalized, "geo": geo, "time": timeframe}],
-            "category": 0,
+            "category": ALL_CATEGORIES,
             "property": "",
         }
         params = {

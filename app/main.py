@@ -25,6 +25,17 @@ APP_DESCRIPTION = (
     "ilişkili aramaları toplayan, saklayan ve analiz eden REST API."
 )
 
+# Swagger'da endpoint gruplarının açıklamaları
+OPENAPI_TAGS = [
+    {"name": "health", "description": "Servisin, veritabanının ve tarama kuyruğunun durumu."},
+    {
+        "name": "jobs",
+        "description": "Tarama işleri: başlatma, ilerlemeyi izleme, sonuçları filtreleme ve CSV olarak indirme.",
+    },
+    {"name": "keywords", "description": "Bir ürünün farklı zamanlardaki taramalarının geçmişi."},
+    {"name": "insights", "description": "Taramalar üzerinde analiz: breakout aramalar ve iki tarama arasındaki fark."},
+]
+
 # Çalışma modu adı (Settings.TRENDS_MODE ile karşılaştırılır)
 LIVE_MODE = "live"
 
@@ -88,6 +99,7 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
         title=settings.APP_NAME,
         description=APP_DESCRIPTION,
         version=__version__,
+        openapi_tags=OPENAPI_TAGS,
         lifespan=lifespan,
     )
     app.state.settings = settings

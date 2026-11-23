@@ -67,7 +67,9 @@ def jobs(session) -> dict[str, int]:
         [
             make_keyword(
                 "Camera Bags", 0, SCAN_A,
-                top=[("camera bag", 100), ("best camera bags", 36), ("Small Camera Bags", 27), ("coach bags", 22)],
+                top=[
+                    ("camera bag", 100), ("best camera bags", 36), ("Small Camera Bags", 27), ("coach bags", 22),
+                ],
                 rising=[("mindshift camera bags", 800), ("vanguard camera bags", 80)],
             ),
             make_keyword("Coasters", 1, SCAN_A, top=[("coasters", 100)], rising=[("coasters diy", 180000)]),
@@ -81,7 +83,10 @@ def jobs(session) -> dict[str, int]:
             # Aynı ürün farklı yazılışla; sorgulardan biri de farklı harf büyüklüğüyle
             make_keyword(
                 "camera bags", 1, SCAN_B,
-                top=[("camera bag", 100), ("best camera bags", 45), ("small camera bags", 27), ("leather camera bags", 12)],
+                top=[
+                    ("camera bag", 100), ("best camera bags", 45),
+                    ("small camera bags", 27), ("leather camera bags", 12),
+                ],
                 rising=[("mindshift camera bags", 26550), ("camera bags 2026", 5000)],
             ),
             make_keyword("Tote Bags", 2, SCAN_B, top=[("tote bag", 100)]),
@@ -289,11 +294,14 @@ def test_diff_same_job_returns_422(client, jobs):
     response = client.get("/insights/diff", params={"from_job": jobs["a"], "to_job": jobs["a"]})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert response.json() == {"detail": "from_job ve to_job farklı olmalı"}
+    assert response.json() == {
+        "detail": [{"type": "value_error", "loc": ["query", "to_job"], "msg": "from_job ve to_job farklı olmalı"}]
+    }
 
 
 @pytest.mark.parametrize(
-    "params", [{}, {"from_job": 1}, {"to_job": 2}, {"from_job": "a", "to_job": 2}, {"from_job": 1, "to_job": 2, "type": "x"}]
+    "params",
+    [{}, {"from_job": 1}, {"to_job": 2}, {"from_job": "a", "to_job": 2}, {"from_job": 1, "to_job": 2, "type": "x"}],
 )
 def test_diff_invalid_parameters_return_422(client, params):
     """Eksik veya geçersiz parametreler 422 döner."""

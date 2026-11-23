@@ -143,7 +143,10 @@ def test_breakout_only_filter(client, job_id):
     "search, expected_queries",
     [
         ("school", ["school backpacks", "sanrio backpacks for school"]),
-        ("BACKPACKS", ["best backpacks", "school backpacks", "sanrio backpacks for school", "cute backpacks for teens"]),
+        (
+            "BACKPACKS",
+            ["best backpacks", "school backpacks", "sanrio backpacks for school", "cute backpacks for teens"],
+        ),
         ("best", ["best camera bags", "best backpacks"]),
         ("bulunmayan", []),
         # % ve _ joker değil düz karakter olarak aranır
@@ -298,7 +301,9 @@ def test_csv_is_not_paginated(client, session):
 
 def test_csv_escapes_special_characters_and_formulas(client, session):
     """Virgül, tırnak ve Türkçe karakterler korunur; formül gibi başlayan hücreler etkisizleştirilir."""
-    queries = ['çanta, "deri" ışıltılı', "=HYPERLINK(\"http://x\")", "+90 çanta", "-indirim", "@kampanya", "normal-sorgu"]
+    queries = [
+        'çanta, "deri" ışıltılı', "=HYPERLINK(\"http://x\")", "+90 çanta", "-indirim", "@kampanya", "normal-sorgu",
+    ]
     job_id = add_job(
         session,
         JobStatus.completed,

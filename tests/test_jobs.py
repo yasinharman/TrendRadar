@@ -163,7 +163,15 @@ def test_too_many_keywords_returns_422(client, settings):
     response = client.post("/jobs", json={"keywords": keywords})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert response.json() == {"detail": "Bir taramada en fazla 30 keyword gönderilebilir"}
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "value_error",
+                "loc": ["body", "keywords"],
+                "msg": "Bir taramada en fazla 30 keyword gönderilebilir",
+            }
+        ]
+    }
 
 
 def test_keyword_limit_is_inclusive_and_applies_after_deduplication(client, settings):
@@ -184,7 +192,11 @@ def test_too_long_keyword_returns_422(client, settings):
 
     assert accepted.status_code == status.HTTP_202_ACCEPTED
     assert rejected.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert rejected.json() == {"detail": "Keyword en fazla 100 karakter olabilir"}
+    assert rejected.json() == {
+        "detail": [
+            {"type": "value_error", "loc": ["body", "keywords"], "msg": "Keyword en fazla 100 karakter olabilir"}
+        ]
+    }
 
 
 # --- GET /jobs: listeleme ---

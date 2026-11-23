@@ -5,7 +5,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi import Depends, Query, Request
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import Engine
 from sqlmodel import Session
 
@@ -43,6 +44,21 @@ SessionDep = Annotated[Session, Depends(get_session)]
 TrendsClientDep = Annotated[TrendsClient, Depends(get_trends_client)]
 
 
+# --- Doğrulama hataları ---
+
+# Pydantic'in kendi hata türleriyle aynı biçimde raporlanan, iş kuralı kaynaklı hata türü
+VALUE_ERROR_TYPE = "value_error"
+
+
+def validation_error(location: str, field: str, message: str) -> RequestValidationError:
+    """Ayarlara bağlı bir sınır aşıldığında fırlatılacak 422 hatasını üretir.
+
+    Pydantic'in şema hatalarıyla aynı biçimde döner; böylece istemci tüm 422 yanıtlarını
+    tek bir biçimde ele alır: {"detail": [{"loc": ["query", "limit"], "msg": "...", "type": "..."}]}
+    """
+    return RequestValidationError([{"type": VALUE_ERROR_TYPE, "loc": (location, field), "msg": message}])
+
+
 # --- Sayfalama ---
 
 @dataclass
@@ -66,10 +82,7 @@ def get_pagination(
     if limit is None:
         limit = settings.DEFAULT_PAGE_SIZE
     if limit > settings.MAX_PAGE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"limit en fazla {settings.MAX_PAGE_SIZE} olabilir",
-        )
+        raise validation_error("query", "limit", f"limit en fazla {settings.MAX_PAGE_SIZE} olabilir")
     # Sayfalama parametreleri hazır
     return Pagination(limit=limit, offset=offset)
 

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.core.config import Settings
-from app.db.models import JobKeyword, JobStatus, KeywordStatus, QueryResult, QueryType, ScrapeJob
+from app.db.models import JobKeyword, JobStatus, KeywordStatus, QueryType, ScrapeJob
 from app.db.session import create_db_engine, init_db
 from app.main import create_app
 from app.services import job_runner

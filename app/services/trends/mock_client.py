@@ -62,6 +62,7 @@ RISING_COUNT_MAX = 8
 # Top değerleri: ilk sonuç her zaman 100, diğerleri bu aralıkta
 TOP_VALUE_MAX = 100
 TOP_VALUE_MIN = 5
+TOP_VALUE_FLOOR = 1   # Tekrar taramadaki oynamadan sonra bile değer bunun altına inmez
 
 # Rising değerleri: breakout olmayanlar eşiğin bu oranları arasında, Google gibi yuvarlak sayılar
 RISING_MIN_RATIO = 0.01
@@ -199,7 +200,7 @@ class MockTrendsClient:
         # İlk sonuç dışındaki değerleri ±%20 oynat (100'ü geçemez)
         leader, others = items[0], items[1:]
         varied = [
-            (query, min(TOP_VALUE_MAX - 1, max(1, round(value * self._variation_factor(rng)))))
+            (query, min(TOP_VALUE_MAX - 1, max(TOP_VALUE_FLOOR, round(value * self._variation_factor(rng)))))
             for query, value in others
         ]
         # Değerler oynatıldı

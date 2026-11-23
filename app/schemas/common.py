@@ -26,6 +26,15 @@ class ErrorResponse(BaseModel):
     model_config = ConfigDict(json_schema_extra={"example": {"detail": "Job bulunamadı"}})
 
 
+def error_response(description: str, detail: str) -> dict:
+    """Swagger'da bir hata yanıtını, o duruma özgü örnek mesajıyla belgeleyen tanımı üretir."""
+    return {
+        "model": ErrorResponse,
+        "description": description,
+        "content": {"application/json": {"example": {"detail": detail}}},
+    }
+
+
 class QueueInfo(BaseModel):
     """Tarama kuyruğunun anlık durumu."""
 

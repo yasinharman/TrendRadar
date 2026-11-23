@@ -6,9 +6,9 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db.models import QueryType
-from app.dependencies import PaginationDep, SessionDep
-from app.routers.jobs import SUCCESSFUL_STATUSES, get_job_or_404
-from app.schemas.common import ErrorResponse, Page
+from app.dependencies import PaginationDep, SessionDep, validation_error
+from app.routers.jobs import JOB_NOT_FOUND_MESSAGE, SUCCESSFUL_STATUSES, get_job_or_404
+from app.schemas.common import Page, error_response
 from app.schemas.insights import BreakoutRead, DiffResponse
 from app.services.insights import build_diff, list_breakouts
 
@@ -28,12 +28,19 @@ def breakouts(
     session: SessionDep,
     pagination: PaginationDep,
     keyword: Annotated[
-        str | None, Query(description="Yalnızca bu seed keyword'ün breakout'ları (büyük/küçük harf duyarsız).")
+        str | None,
+        Query(
+            description="Yalnızca bu seed keyword'ün breakout'ları (büyük/küçük harf duyarsız).",
+            examples=["Camera Bags"],
+        ),
     ] = None,
     job_id: Annotated[int | None, Query(description="Yalnızca bu işin breakout'ları.")] = None,
     since: Annotated[
         datetime | None,
-        Query(description="Bu zamandan sonra taranmış olanlar (ISO 8601; saat dilimi verilmezse UTC kabul edilir)."),
+        Query(
+            description="Bu zamandan sonra taranmış olanlar (ISO 8601; saat dilimi verilmezse UTC kabul edilir).",
+            examples=["2026-11-01T00:00:00Z"],
+        ),
     ] = None,
 ) -> Page[BreakoutRead]:
     """Filtrelenmiş ve sayfalanmış breakout listesini döner."""
@@ -48,15 +55,15 @@ def breakouts(
     description=(
         "İki tarama arasında, **her ikisinde de başarılı olan** ortak ürünler için listeye yeni giren, "
         "listeden çıkan ve değeri/sırası değişen aramaları döner. Aramalar büyük/küçük harf duyarsız eşleştirilir.\n\n"
-        "`geo` veya `timeframe` farklıysa hata verilmez; `warnings` alanı doldurulur."
+        "`geo` veya `timeframe` farklıysa hata verilmez; `warnings` alanı doldurulur. "
+        "`from_job` ile `to_job` aynı olamaz (422)."
     ),
     responses={
-        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "İşlerden biri bulunamadı"},
-        status.HTTP_409_CONFLICT: {
-            "model": ErrorResponse,
-            "description": "İşlerden biri henüz tamamlanmadı veya başarısız oldu",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "from_job ve to_job aynı veya parametreler geçersiz"},
+        status.HTTP_404_NOT_FOUND: error_response("İşlerden biri bulunamadı", JOB_NOT_FOUND_MESSAGE),
+        status.HTTP_409_CONFLICT: error_response(
+            "İşlerden biri henüz tamamlanmadı veya başarısız oldu",
+            "Job 7 'running' durumunda; yalnızca completed veya partial işler karşılaştırılabilir",
+        ),
     },
 )
 def diff(
@@ -64,7 +71,11 @@ def diff(
     from_job: Annotated[int, Query(description="Eski taramanın id'si.")],
     to_job: Annotated[int, Query(description="Yeni taramanın id'si.")],
     keyword: Annotated[
-        str | None, Query(description="Yalnızca bu seed keyword karşılaştırılır (büyük/küçük harf duyarsız).")
+        str | None,
+        Query(
+            description="Yalnızca bu seed keyword karşılaştırılır (büyük/küçük harf duyarsız).",
+            examples=["Camera Bags"],
+        ),
     ] = None,
     query_type: Annotated[
         QueryType | None,
@@ -74,9 +85,7 @@ def diff(
     """İki job'ı doğrular ve karşılaştırma sonucunu döner."""
     # Bir taramanın kendisiyle karşılaştırılması anlamsızdır
     if from_job == to_job:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="from_job ve to_job farklı olmalı"
-        )
+        raise validation_error("query", "to_job", "from_job ve to_job farklı olmalı")
     # Parametre kontrolü tamamlandı
 
     # Her iki job da var olmalı ve sonuç üretmiş olmalı
