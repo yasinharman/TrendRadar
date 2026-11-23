@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Yalnızca kendi kaynağımızdan betik ve stil yüklenir; satır içi betik çalışmaz -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'">
+    <title>TrendRadar</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Üst şerit: çalışma modu ve kuyruk durumu -->
+<header class="topbar">
+    <h1>TrendRadar</h1>
+    <span id="mode-badge" class="badge" hidden></span>
+    <span id="queue-info" class="muted"></span>
+    <a class="topbar-link" href="/docs">API belgesi</a>
+</header>
+
+<!-- Sekmeler -->
+<nav class="tabs" aria-label="Bölümler">
+    <button type="button" class="tab active" data-view="jobs">Taramalar</button>
+    <button type="button" class="tab" data-view="breakouts">Breakout'lar</button>
+    <button type="button" class="tab" data-view="diff">Karşılaştır</button>
+    <button type="button" class="tab" data-view="history">Geçmiş</button>
+</nav>
+
+<main>
+    <!-- Hata ve bilgi mesajları -->
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <!-- ================= Taramalar ================= -->
+    <section id="view-jobs" class="view">
+        <div class="grid">
+            <form id="job-form" class="card">
+                <h2>Yeni tarama</h2>
+                <label for="job-keywords">Ürün adları <span class="muted">(her satıra bir ürün)</span></label>
+                <textarea id="job-keywords" rows="6" required
+                          placeholder="Camera Bags&#10;Backpacks&#10;Tote Bags"></textarea>
+
+                <label for="job-geo">Ülke kodu</label>
+                <input id="job-geo" type="text" maxlength="2" placeholder="TR" autocomplete="off">
+                <p class="hint">2 harf. Boş bırakılırsa sunucunun varsayılanı kullanılır.</p>
+
+                <label for="job-timeframe">Zaman aralığı</label>
+                <select id="job-timeframe">
+                    <option value="">Sunucu varsayılanı</option>
+                    <option value="now 7-d">Son 7 gün</option>
+                    <option value="today 1-m">Son 1 ay</option>
+                    <option value="today 3-m">Son 3 ay</option>
+                    <option value="today 12-m">Son 12 ay</option>
+                    <option value="today 5-y">Son 5 yıl</option>
+                </select>
+
+                <button type="submit" class="primary">Taramayı başlat</button>
+            </form>
+
+            <div class="card">
+                <div class="card-head">
+                    <h2>Taramalar</h2>
+                    <button type="button" id="jobs-refresh">Yenile</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Durum</th>
+                            <th>İlerleme</th>
+                            <th>Ülke</th>
+                            <th>Aralık</th>
+                            <th>Oluşturulma</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="jobs-body"></tbody>
+                    </table>
+                </div>
+                <p id="jobs-empty" class="muted" hidden>Henüz tarama yok. Soldaki formdan ilk taramayı başlatın.</p>
+                <div id="jobs-pager" class="pager"></div>
+            </div>
+        </div>
+
+        <!-- Seçilen taramanın detayı -->
+        <div id="job-detail" class="card" hidden>
+            <div class="card-head">
+                <h2 id="detail-title"></h2>
+                <span id="detail-status" class="badge"></span>
+                <a id="detail-csv" class="button" hidden>CSV indir</a>
+            </div>
+            <p id="detail-meta" class="muted"></p>
+            <div class="progress" aria-hidden="true"><div id="detail-progress-bar" class="progress-bar"></div></div>
+            <p id="detail-error" class="error-text" hidden></p>
+
+            <h3>Ürünler</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Ürün</th>
+                        <th>Durum</th>
+                        <th class="num">Top</th>
+                        <th class="num">Rising</th>
+                        <th>Hata</th>
+                    </tr>
+                    </thead>
+                    <tbody id="detail-keywords"></tbody>
+                </table>
+            </div>
+
+            <h3>Sonuçlar</h3>
+            <form id="results-form" class="filters">
+                <label>Tür
+                    <select id="results-type">
+                        <option value="">Hepsi</option>
+                        <option value="top">Top</option>
+                        <option value="rising">Rising</option>
+                    </select>
+                </label>
+                <label>Ürün
+                    <select id="results-keyword">
+                        <option value="">Hepsi</option>
+                    </select>
+                </label>
+                <label>En düşük değer
+                    <input id="results-min-value" type="number" min="0" step="1">
+                </label>
+                <label>Aramada geçen
+                    <input id="results-search" type="search">
+                </label>
+                <label class="check">
+                    <input id="results-breakout" type="checkbox"> Yalnızca breakout
+                </label>
+                <button type="submit">Filtrele</button>
+                <button type="button" id="results-reset">Temizle</button>
+            </form>
+            <p id="results-summary" class="muted"></p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Ürün</th>
+                        <th>Tür</th>
+                        <th class="num">Sıra</th>
+                        <th>Arama</th>
+                        <th class="num">Değer</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                </table>
+            </div>
+            <div id="results-pager" class="pager"></div>
+        </div>
+    </section>
+
+    <!-- ================= Breakout'lar ================= -->
+    <section id="view-breakouts" class="view" hidden>
+        <div class="card">
+            <h2>Breakout aramalar</h2>
+            <p class="muted">Tüm taramalarda, yükseliş değeri breakout eşiğini geçen aramalar (en yüksek değer önce).</p>
+            <form id="breakouts-form" class="filters">
+                <label>Ürün
+                    <input id="breakouts-keyword" type="text" placeholder="Camera Bags">
+                </label>
+                <label>Şu tarihten sonra
+                    <input id="breakouts-since" type="datetime-local">
+                </label>
+                <button type="submit">Filtrele</button>
+            </form>
+            <p id="breakouts-summary" class="muted"></p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Ürün</th>
+                        <th>Arama</th>
+                        <th class="num">Değer</th>
+                        <th>Tarama</th>
+                        <th>Tarih</th>
+                    </tr>
+                    </thead>
+                    <tbody id="breakouts-body"></tbody>
+                </table>
+            </div>
+            <div id="breakouts-pager" class="pager"></div>
+        </div>
+    </section>
+
+    <!-- ================= Karşılaştır ================= -->
+    <section id="view-diff" class="view" hidden>
+        <div class="card">
+            <h2>İki taramayı karşılaştır</h2>
+            <p class="muted">Her iki taramada da başarılı olan ortak ürünler için listeye giren, çıkan ve değişen aramalar.</p>
+            <form id="diff-form" class="filters">
+                <label>Eski tarama
+                    <select id="diff-from" required></select>
+                </label>
+                <label>Yeni tarama
+                    <select id="diff-to" required></select>
+                </label>
+                <label>Ürün
+                    <input id="diff-keyword" type="text" placeholder="Hepsi">
+                </label>
+                <label>Tür
+                    <select id="diff-type">
+                        <option value="">Hepsi</option>
+                        <option value="top">Top</option>
+                        <option value="rising">Rising</option>
+                    </select>
+                </label>
+                <button type="submit" class="primary">Karşılaştır</button>
+            </form>
+            <p id="diff-empty" class="muted" hidden>Karşılaştırmak için tamamlanmış en az iki tarama gerekir.</p>
+        </div>
+        <div id="diff-output"></div>
+    </section>
+
+    <!-- ================= Geçmiş ================= -->
+    <section id="view-history" class="view" hidden>
+        <div class="card">
+            <h2>Ürün geçmişi</h2>
+            <p class="muted">Bir ürünün başarılı taramaları, en yeniden eskiye.</p>
+            <form id="history-form" class="filters">
+                <label>Ürün
+                    <input id="history-keyword" type="text" placeholder="Camera Bags" required>
+                </label>
+                <label>Tür
+                    <select id="history-type">
+                        <option value="">Hepsi</option>
+                        <option value="top">Top</option>
+                        <option value="rising">Rising</option>
+                    </select>
+                </label>
+                <button type="submit" class="primary">Geçmişi getir</button>
+            </form>
+        </div>
+        <div id="history-output"></div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

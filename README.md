@@ -16,11 +16,13 @@ ilişkisel bir veri modeline, elle çalıştırılan döngü yerini arka planda 
 4. Tamamlanınca sonuçları filtreleyerek alır veya CSV olarak indirirsiniz.
 5. Aynı ürün farklı zamanlarda tekrar taranırsa geçmişini ve iki tarama arasındaki farkı (diff) inceleyebilirsiniz.
 
+Bunların hepsi tarayıcıdan, API'nin kendi sunduğu [web arayüzü](#web-arayüzü) ile de yapılabilir.
+
 ## Mimari
 
 ```mermaid
 flowchart LR
-    client["İstemci<br/>(curl / Swagger)"]
+    client["İstemci<br/>(web arayüzü / curl / Swagger)"]
     api["FastAPI<br/>router'lar"]
     worker["Job runner<br/>(tek worker'lı kuyruk)"]
     trends{"TrendsClient"}
@@ -70,8 +72,9 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-API `http://127.0.0.1:8000` adresinde açılır; etkileşimli belge (Swagger) `http://127.0.0.1:8000/docs`
-adresindedir. Hiçbir ayar yapmadan **mock modda** ve yerel bir SQLite dosyasıyla (`trendradar.db`) çalışır.
+Uygulama `http://127.0.0.1:8000` adresinde açılır: bu adres web arayüzüne yönlenir, etkileşimli API belgesi
+(Swagger) ise `http://127.0.0.1:8000/docs` adresindedir. Hiçbir ayar yapmadan **mock modda** ve yerel bir SQLite
+dosyasıyla (`trendradar.db`) çalışır.
 
 Ayarları değiştirmek için `.env.example` dosyasını `.env` adıyla kopyalayıp düzenleyin.
 
@@ -130,6 +133,22 @@ rastgele beklenir); `429` yanıtında 30 ve 60 saniye beklenip tekrar denenir.
 > erişebilir. Bu dosyayı **asla commit etmeyin, paylaşmayın veya loglamayın.** Dosya `.gitignore` ve
 > `.dockerignore` içindedir; Docker'da imaja kopyalanmaz, yalnızca salt-okunur volume olarak bağlanır
 > (`docker-compose.yml` içindeki örneğe bakın).
+
+## Web arayüzü
+
+`http://127.0.0.1:8000/ui/` adresindeki arayüz API'nin her özelliğini tarayıcıdan kullandırır. Ayrı bir kurulum
+veya derleme adımı yoktur: `app/static/` altındaki üç dosyadan (HTML, CSS, sade JavaScript) oluşur ve API ile aynı
+süreçten sunulur. Kendi iş mantığı yoktur; yalnızca aşağıdaki endpoint'leri çağırır.
+
+| Sekme | Ne yapar |
+|---|---|
+| **Taramalar** | Yeni tarama başlatır, işleri ve kuyruk sırasını listeler, ilerlemeyi kendiliğinden yeniler. Seçilen taramanın ürün özetini, filtrelenebilir sonuç tablosunu ve CSV bağlantısını gösterir |
+| **Breakout'lar** | Tüm taramalardaki breakout aramaları ürüne ve tarihe göre süzer |
+| **Karşılaştır** | İki taramayı seçip listeye giren, çıkan ve değişen aramaları gösterir |
+| **Geçmiş** | Bir ürünün önceki taramalarını yan yana listeler |
+
+Üst şeritte çalışma modu (mock/live) ve kuyruğun durumu görünür. Parola koruması açıksa arayüz de kullanıcı adı ve
+parola ister.
 
 ## Endpoint'ler
 
@@ -212,8 +231,8 @@ dosyasındadır. En sık değiştirilenler:
 
 ### Parola koruması
 
-Varsayılan olarak koruma kapalıdır. `AUTH_USERNAME` ve `AUTH_PASSWORD` birlikte verildiğinde API'nin tamamı ve
-Swagger arayüzü kullanıcı adı + parola ister (HTTP Basic Auth); tarayıcı giriş penceresini kendisi açar. Yalnızca
+Varsayılan olarak koruma kapalıdır. `AUTH_USERNAME` ve `AUTH_PASSWORD` birlikte verildiğinde API'nin tamamı, web
+arayüzü ve Swagger kullanıcı adı + parola ister (HTTP Basic Auth); tarayıcı giriş penceresini kendisi açar. Yalnızca
 `/health` açık kalır, böylece konteyner sağlık kontrolü parolasız çalışır.
 
 ```bash
@@ -247,6 +266,7 @@ sahte bir HTTP oturumuyla sınanır.
 | `test_mock_client.py` | Mock verinin tutarlılığı ve tekrar taramalardaki oynama |
 | `test_error_codes.py`, `test_openapi.py` | Her endpoint'in hata kodları ve Swagger belgesinin eksiksizliği |
 | `test_auth.py` | Parola koruması: başlığın çözülmesi, 401 yanıtı, açık kalan `/health` |
+| `test_ui.py` | Web arayüzünün sunulması, arayüzdeki seçeneklerin API ile tutarlılığı, HTML olarak yazma yasağı |
 | `test_config.py`, `test_models.py`, `test_health.py`, `test_startup.py` | Ayarlar, veri modeli, sağlık kontrolü, mod seçimi |
 
 ## Proje yapısı
@@ -262,7 +282,8 @@ app/
 │   ├── models.py            # ScrapeJob → JobKeyword → QueryResult
 │   └── session.py           # Engine oluşturma, tabloların hazırlanması
 ├── schemas/                 # İstek ve yanıt şemaları
-├── routers/                 # health, jobs, keywords, insights
+├── routers/                 # health, jobs, keywords, insights, ui (kök adres yönlendirmesi)
+├── static/                  # Web arayüzü: index.html, style.css, app.js
 └── services/
     ├── job_runner.py        # Kuyruk ve tarama yürütme
     ├── insights.py          # Diff, breakout ve geçmiş sorguları

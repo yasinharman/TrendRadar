@@ -1,0 +1,475 @@
+/* TrendRadar web arayüzü stilleri */
+
+/* --- Renkler: açık tema varsayılan, koyu tema sistem tercihine göre --- */
+:root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --text: #1c2330;
+    --muted: #5d6778;
+    --border: #d9dde4;
+    --accent: #2456d6;
+    --accent-text: #ffffff;
+    --row-hover: #eef2fb;
+    --row-selected: #dfe8fb;
+    --ok: #17794a;
+    --ok-bg: #dff4e8;
+    --warn: #8a5a00;
+    --warn-bg: #fdefc8;
+    --bad: #b3261e;
+    --bad-bg: #fbe0de;
+    --info: #1d4fbf;
+    --info-bg: #dfe8fb;
+    --neutral-bg: #e7eaef;
+    color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #12151b;
+        --surface: #1b2029;
+        --text: #e6e9ef;
+        --muted: #9aa4b5;
+        --border: #2f3644;
+        --accent: #7aa2ff;
+        --accent-text: #0d1320;
+        --row-hover: #232a37;
+        --row-selected: #2a3550;
+        --ok: #6fd6a0;
+        --ok-bg: #173526;
+        --warn: #f0c060;
+        --warn-bg: #3a2e10;
+        --bad: #ff8f87;
+        --bad-bg: #40201e;
+        --info: #9dbaff;
+        --info-bg: #1f2c4d;
+        --neutral-bg: #2a303c;
+    }
+}
+
+/* --- Genel --- */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+h1, h2, h3 {
+    margin: 0;
+    line-height: 1.25;
+}
+
+h1 {
+    font-size: 20px;
+}
+
+h2 {
+    font-size: 17px;
+}
+
+h3 {
+    font-size: 15px;
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+p {
+    margin: 8px 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.hint {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.error-text {
+    color: var(--bad);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* --- Üst şerit ve sekmeler --- */
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar-link {
+    margin-left: auto;
+    color: var(--accent);
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.tab {
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    color: var(--text);
+    background: none;
+}
+
+.tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* --- Kartlar ve yerleşim --- */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.card-head h2 {
+    margin-right: auto;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* Izgara hücreleri içeriğinden dar olabilsin; geniş tablolar sayfayı değil kendi kutusunu kaydırır */
+.grid > *, .columns > * {
+    min-width: 0;
+}
+
+@media (max-width: 800px) {
+    .grid, .columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* --- Form öğeleri --- */
+label {
+    display: block;
+    margin-top: 12px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+input, select, textarea, button, .button {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 10px;
+}
+
+input[type="text"], input[type="search"], input[type="number"], input[type="datetime-local"], select, textarea {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+textarea {
+    resize: vertical;
+}
+
+button, .button {
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .button:hover {
+    background: var(--row-hover);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+button.primary:hover {
+    filter: brightness(1.08);
+    background: var(--accent);
+}
+
+button.danger {
+    color: var(--bad);
+}
+
+button.small {
+    padding: 3px 8px;
+    font-size: 13px;
+}
+
+button.link {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+#job-form button[type="submit"] {
+    margin-top: 16px;
+    width: 100%;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Filtre satırı: öğeler yan yana, dar ekranda alt alta */
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin: 8px 0;
+}
+
+.filters label {
+    margin-top: 0;
+    min-width: 150px;
+    flex: 1 1 150px;
+}
+
+.filters label.check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    min-width: 0;
+    padding-bottom: 7px;
+    font-weight: 400;
+}
+
+/* --- Tablolar --- */
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+th, td {
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+tr.clickable {
+    cursor: pointer;
+}
+
+tr.clickable:hover {
+    background: var(--row-hover);
+}
+
+tr.selected, tr.selected:hover {
+    background: var(--row-selected);
+}
+
+td.actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+td.actions button {
+    margin-left: 4px;
+}
+
+/* --- Rozetler --- */
+.badge {
+    display: inline-block;
+    padding: 1px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--neutral-bg);
+    color: var(--text);
+}
+
+.badge.pending {
+    background: var(--neutral-bg);
+    color: var(--muted);
+}
+
+.badge.running, .badge.live {
+    background: var(--info-bg);
+    color: var(--info);
+}
+
+.badge.completed, .badge.success {
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+.badge.partial, .badge.breakout, .badge.mock {
+    background: var(--warn-bg);
+    color: var(--warn);
+}
+
+.badge.failed {
+    background: var(--bad-bg);
+    color: var(--bad);
+}
+
+/* --- İlerleme çubuğu --- */
+.progress {
+    height: 8px;
+    margin: 10px 0;
+    border-radius: 999px;
+    background: var(--neutral-bg);
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.3s ease;
+}
+
+/* --- Mesaj kutusu --- */
+.notice {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    background: var(--info-bg);
+    color: var(--info);
+    font-weight: 600;
+}
+
+.notice.error {
+    background: var(--bad-bg);
+    color: var(--bad);
+}
+
+.notice.success {
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+/* --- Sayfalama --- */
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+/* --- Karşılaştırma ve geçmiş --- */
+.diff-list {
+    list-style: none;
+    margin: 4px 0 12px;
+    padding: 0;
+}
+
+.diff-list li {
+    padding: 2px 0;
+}
+
+.added {
+    color: var(--ok);
+}
+
+.removed {
+    color: var(--bad);
+}
+
+.sub-title {
+    margin: 12px 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.warning-box {
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: var(--warn-bg);
+    color: var(--warn);
+}

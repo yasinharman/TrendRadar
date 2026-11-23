@@ -7,12 +7,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.core.auth import BasicAuthMiddleware
 from app.core.config import Settings, get_settings
 from app.db.session import create_db_engine, init_db
-from app.routers import health, insights, jobs, keywords
+from app.routers import health, insights, jobs, keywords, ui
 from app.services.job_runner import recover_interrupted_jobs, resume_pending_jobs
 from app.services.trends.base import TrendsClient
 from app.services.trends.live_client import LiveTrendsClient
@@ -118,6 +119,11 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
     app.include_router(keywords.router)
     app.include_router(insights.router)
     # Router kaydı tamamlandı
+
+    # Web arayüzü: statik dosyalar /ui altında sunulur, kök adres oraya yönlendirir
+    app.include_router(ui.router)
+    app.mount(ui.UI_PATH, StaticFiles(directory=ui.STATIC_DIR, html=True), name="ui")
+    # Web arayüzü hazır
 
     return app
 
