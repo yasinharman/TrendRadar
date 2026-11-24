@@ -189,7 +189,7 @@ def test_results_of_unknown_job_return_404(client):
     response = client.get("/jobs/999/results")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {"detail": "Job bulunamadı"}
+    assert response.json() == {"detail": "Job not found"}
 
 
 @pytest.mark.parametrize(
@@ -362,7 +362,7 @@ def test_csv_of_unfinished_or_failed_job_returns_409(client, session, job_status
 
     assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json() == {
-        "detail": f"Job '{job_status.value}' durumunda; CSV yalnızca completed veya partial işler için indirilebilir"
+        "detail": f"Job is '{job_status.value}'; CSV can only be downloaded for completed or partial jobs"
     }
 
 

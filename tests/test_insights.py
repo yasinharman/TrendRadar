@@ -167,7 +167,7 @@ def test_diff_between_two_scans(client, jobs):
     assert diff == {
         "from_job": jobs["a"],
         "to_job": jobs["b"],
-        "warnings": ["geo farklı: '' → 'TR'", "timeframe farklı: 'today 1-m' → 'today 3-m'"],
+        "warnings": ["geo differs: '' → 'TR'", "timeframe differs: 'today 1-m' → 'today 3-m'"],
         "keywords": [
             {
                 "keyword": "camera bags",
@@ -218,7 +218,7 @@ def test_diff_is_reversible(client, jobs):
     assert [item["query"] for item in reversed_keyword["top"]["new"]] == ["coach bags"]
     assert [item["query"] for item in reversed_keyword["top"]["dropped"]] == ["leather camera bags"]
     assert reversed_keyword["rising"]["changed"][0]["delta"] == -forward["rising"]["changed"][0]["delta"]
-    assert backward["warnings"] == ["geo farklı: 'TR' → ''", "timeframe farklı: 'today 3-m' → 'today 1-m'"]
+    assert backward["warnings"] == ["geo differs: 'TR' → ''", "timeframe differs: 'today 3-m' → 'today 1-m'"]
     assert backward["only_in_from"] == ["Aprons", "Tote Bags"]
     assert backward["only_in_to"] == ["Coasters"]
 
@@ -270,7 +270,7 @@ def test_diff_unknown_job_returns_404(client, jobs, missing):
     response = client.get("/insights/diff", params=params)
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {"detail": "Job bulunamadı"}
+    assert response.json() == {"detail": "Job not found"}
 
 
 @pytest.mark.parametrize("job_status", [JobStatus.pending, JobStatus.running, JobStatus.failed])
@@ -284,8 +284,7 @@ def test_diff_with_unfinished_or_failed_job_returns_409(client, session, jobs, j
 
     assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json() == {
-        "detail": f"Job {other_id} '{job_status.value}' durumunda; "
-        "yalnızca completed veya partial işler karşılaştırılabilir"
+        "detail": f"Job {other_id} is '{job_status.value}'; only completed or partial jobs can be compared"
     }
 
 
@@ -295,7 +294,7 @@ def test_diff_same_job_returns_422(client, jobs):
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert response.json() == {
-        "detail": [{"type": "value_error", "loc": ["query", "to_job"], "msg": "from_job ve to_job farklı olmalı"}]
+        "detail": [{"type": "value_error", "loc": ["query", "to_job"], "msg": "from_job and to_job must be different"}]
     }
 
 
@@ -493,7 +492,7 @@ def test_history_unknown_keyword_returns_404(client, jobs):
     response = client.get("/keywords/Wine Carriers/history")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {"detail": "Bu keyword için başarılı tarama bulunamadı"}
+    assert response.json() == {"detail": "No successful scan found for this keyword"}
 
 
 def test_history_of_keyword_with_only_failed_scans_returns_404(client, session):

@@ -202,7 +202,7 @@ class LiveTrendsClient:
         resp.raise_for_status()
         data = _clean_json(resp.text)
         if not isinstance(data, dict):
-            raise TrendsError("Beklenmeyen yanıt biçimi")
+            raise TrendsError("Unexpected response format")
         # Yanıt parse edildi
 
         # rankedList[0] = top, rankedList[1] = rising — her ikisini de güvenli şekilde çek
@@ -223,7 +223,7 @@ class LiveTrendsClient:
                 # Explore ile token al
                 token, req = self.get_explore_payload(keyword, geo, timeframe)
                 if not token or not req:
-                    raise TokenNotFoundError("Related queries widget token bulunamadı")
+                    raise TokenNotFoundError("Related queries widget token not found")
                 # Token alındı
 
                 # İstekler arası kısa bekleme (Google insanlığı sever)
@@ -232,7 +232,7 @@ class LiveTrendsClient:
                 # Related searches'i çek
                 trends = self.get_related_searches(token, req)
                 if not trends.top and not trends.rising:
-                    raise EmptyTrendsError("Boş veri döndü (top ve rising her ikisi de boş)")
+                    raise EmptyTrendsError("Empty data returned (both top and rising are empty)")
                 return trends
 
             except requests.HTTPError as e:
@@ -248,11 +248,11 @@ class LiveTrendsClient:
 
             except requests.RequestException as e:
                 # Diğer istek hataları — retry'a değmez
-                raise TrendsError(f"İstek başarısız: {type(e).__name__}") from e
+                raise TrendsError(f"Request failed: {type(e).__name__}") from e
 
             except ValueError as e:
                 # JSON yerine başka içerik geldi (ör. cookie süresi dolunca giriş sayfası)
-                raise TrendsError("Yanıt JSON olarak ayrıştırılamadı (cookie süresi dolmuş olabilir)") from e
+                raise TrendsError("Response could not be parsed as JSON (the cookie may have expired)") from e
 
             # Son deneme değilse giderek artan süre bekle
             if attempt < max_retries - 1:
@@ -264,7 +264,7 @@ class LiveTrendsClient:
             # Backoff adımı tamamlandı
 
         # Tüm denemeler tükendi
-        raise TrendsError(f"{max_retries} denemede başarısız: {last_error}")
+        raise TrendsError(f"Failed after {max_retries} attempts: {last_error}")
 
     # --- Bekleme ---
 

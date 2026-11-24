@@ -46,7 +46,7 @@ class JobCreate(BaseModel):
             # Baştaki/sondaki boşlukları at, aradaki boşlukları teke indir
             display = " ".join(keyword.split())
             if not display:
-                raise ValueError("Keyword boş olamaz")
+                raise ValueError("Keyword cannot be empty")
             # Boşluklar sadeleştirildi
 
             # Aynı keyword'ün farklı yazılışlarından yalnızca ilki tutulur
@@ -66,7 +66,7 @@ class JobCreate(BaseModel):
             return None
         geo = geo.strip().upper()
         if not re.fullmatch(GEO_PATTERN, geo):
-            raise ValueError('Ülke kodu 2 harf olmalı (ör. "TR") veya tüm dünya için boş bırakılmalı')
+            raise ValueError('Country code must be 2 letters (e.g. "TR") or empty for worldwide')
         return geo
 
 
@@ -153,7 +153,7 @@ class JobDetail(JobRead):
                         "status": "failed",
                         "top_count": 0,
                         "rising_count": 0,
-                        "error_message": "EmptyTrendsError: Boş veri döndü (top ve rising her ikisi de boş)",
+                        "error_message": "EmptyTrendsError: Empty data returned (both top and rising are empty)",
                     },
                 ],
             }

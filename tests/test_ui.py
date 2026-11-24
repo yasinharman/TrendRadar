@@ -150,7 +150,7 @@ def test_country_field_is_a_dropdown_defaulting_to_worldwide():
     """Ülke elle yazılmaz; açılır listeden seçilir ve ilk seçenek tüm dünyadır."""
     page = read_static("index.html")
 
-    assert re.search(r'<select id="job-geo">\s*<option value="">Tüm dünya</option>', page)
+    assert re.search(r'<select id="job-geo">\s*(<!--.*?-->\s*)?<option value="">Worldwide</option>', page)
     assert '<input id="job-geo"' not in page
 
 

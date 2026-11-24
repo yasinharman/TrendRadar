@@ -82,7 +82,7 @@ def get_pagination(
     if limit is None:
         limit = settings.DEFAULT_PAGE_SIZE
     if limit > settings.MAX_PAGE_SIZE:
-        raise validation_error("query", "limit", f"limit en fazla {settings.MAX_PAGE_SIZE} olabilir")
+        raise validation_error("query", "limit", f"limit can be at most {settings.MAX_PAGE_SIZE}")
     # Sayfalama parametreleri hazır
     return Pagination(limit=limit, offset=offset)
 

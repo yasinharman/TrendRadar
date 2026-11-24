@@ -113,7 +113,7 @@ def test_fail_keyword_raises_trends_error(settings, keyword):
 @pytest.mark.parametrize("keyword", ["empty", "Empty Box", "my EMPTY keyword"])
 def test_empty_keyword_raises_empty_trends_error(settings, keyword):
     """İçinde "empty" geçen keyword boş veri hatası fırlatır."""
-    with pytest.raises(EmptyTrendsError, match="Boş veri döndü"):
+    with pytest.raises(EmptyTrendsError, match="Empty data returned"):
         fetch(MockTrendsClient(settings), keyword)
 
 

@@ -33,8 +33,8 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 JobIdPath = Annotated[int, Path(description="İşin id'si (POST /jobs yanıtındaki `id`).")]
 
 # Hata mesajları
-JOB_NOT_FOUND_MESSAGE = "Job bulunamadı"
-RUNNING_JOB_DELETE_MESSAGE = "Çalışan job silinemez"
+JOB_NOT_FOUND_MESSAGE = "Job not found"
+RUNNING_JOB_DELETE_MESSAGE = "A running job cannot be deleted"
 
 # Swagger'da tekrar kullanılan hata yanıtı tanımı
 NOT_FOUND_RESPONSE = {status.HTTP_404_NOT_FOUND: error_response("Job bulunamadı", JOB_NOT_FOUND_MESSAGE)}
@@ -70,7 +70,7 @@ def check_keyword_limits(keywords: list[str], settings: Settings) -> None:
     # Adet sınırı (tekrarlar temizlendikten sonraki sayıya uygulanır)
     if len(keywords) > settings.MAX_KEYWORDS_PER_JOB:
         raise validation_error(
-            "body", "keywords", f"Bir taramada en fazla {settings.MAX_KEYWORDS_PER_JOB} keyword gönderilebilir"
+            "body", "keywords", f"A scan can contain at most {settings.MAX_KEYWORDS_PER_JOB} keywords"
         )
     # Adet kontrolü tamamlandı
 
@@ -78,7 +78,7 @@ def check_keyword_limits(keywords: list[str], settings: Settings) -> None:
     for keyword in keywords:
         if len(keyword) > settings.MAX_KEYWORD_LENGTH:
             raise validation_error(
-                "body", "keywords", f"Keyword en fazla {settings.MAX_KEYWORD_LENGTH} karakter olabilir"
+                "body", "keywords", f"A keyword can be at most {settings.MAX_KEYWORD_LENGTH} characters long"
             )
     # Uzunluk kontrolü tamamlandı
 
@@ -410,7 +410,7 @@ def list_results(
         **NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: error_response(
             "İş henüz tamamlanmadı veya başarısız oldu",
-            "Job 'running' durumunda; CSV yalnızca completed veya partial işler için indirilebilir",
+            "Job is 'running'; CSV can only be downloaded for completed or partial jobs",
         ),
     },
 )
@@ -428,7 +428,7 @@ def export_results_csv(
     if job.status not in SUCCESSFUL_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Job '{job.status.value}' durumunda; CSV yalnızca completed veya partial işler için indirilebilir",
+            detail=f"Job is '{job.status.value}'; CSV can only be downloaded for completed or partial jobs",
         )
     # Durum kontrolü tamamlandı
 

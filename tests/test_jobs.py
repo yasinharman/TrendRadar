@@ -168,7 +168,7 @@ def test_too_many_keywords_returns_422(client, settings):
             {
                 "type": "value_error",
                 "loc": ["body", "keywords"],
-                "msg": "Bir taramada en fazla 30 keyword gönderilebilir",
+                "msg": "A scan can contain at most 30 keywords",
             }
         ]
     }
@@ -194,7 +194,7 @@ def test_too_long_keyword_returns_422(client, settings):
     assert rejected.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert rejected.json() == {
         "detail": [
-            {"type": "value_error", "loc": ["body", "keywords"], "msg": "Keyword en fazla 100 karakter olabilir"}
+            {"type": "value_error", "loc": ["body", "keywords"], "msg": "A keyword can be at most 100 characters long"}
         ]
     }
 
@@ -296,7 +296,7 @@ def test_job_detail_includes_keyword_summary(client):
         "status": "failed",
         "top_count": 0,
         "rising_count": 0,
-        "error_message": "EmptyTrendsError: Boş veri döndü (top ve rising her ikisi de boş)",
+        "error_message": "EmptyTrendsError: Empty data returned (both top and rising are empty)",
     }
     assert fail["status"] == "failed"
     assert fail["error_message"].startswith("TrendsError: ")
@@ -320,7 +320,7 @@ def test_job_detail_not_found(client):
     response = client.get("/jobs/999")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {"detail": "Job bulunamadı"}
+    assert response.json() == {"detail": "Job not found"}
 
 
 def test_job_id_must_be_integer(client):
@@ -368,7 +368,7 @@ def test_delete_running_job_returns_409(client, session):
     response = client.delete(f"/jobs/{job.id}")
 
     assert response.status_code == status.HTTP_409_CONFLICT
-    assert response.json() == {"detail": "Çalışan job silinemez"}
+    assert response.json() == {"detail": "A running job cannot be deleted"}
     assert client.get(f"/jobs/{job.id}").status_code == status.HTTP_200_OK
 
 

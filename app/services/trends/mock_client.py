@@ -107,9 +107,9 @@ class MockTrendsClient:
 
         # İşaret kelimesi içeren keyword'ler için hata senaryoları
         if FAIL_MARKER in normalized:
-            raise TrendsError("Mock: bu keyword için tarama hatası simüle edildi")
+            raise TrendsError("Mock: simulated scan failure for this keyword")
         if EMPTY_MARKER in normalized:
-            raise EmptyTrendsError("Boş veri döndü (top ve rising her ikisi de boş)")
+            raise EmptyTrendsError("Empty data returned (both top and rising are empty)")
         # Hata senaryoları kontrol edildi
 
         # Temel sonuç yalnızca keyword'e bağlıdır: aynı keyword → aynı liste

@@ -23,7 +23,7 @@ class ErrorResponse(BaseModel):
 
     detail: str
 
-    model_config = ConfigDict(json_schema_extra={"example": {"detail": "Job bulunamadı"}})
+    model_config = ConfigDict(json_schema_extra={"example": {"detail": "Job not found"}})
 
 
 def error_response(description: str, detail: str) -> dict:

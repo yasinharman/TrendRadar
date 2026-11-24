@@ -287,7 +287,7 @@ def test_fetch_keyword_token_not_found(live_settings, sleeps):
     data["widgets"] = [w for w in data["widgets"] if w["id"] != "RELATED_QUERIES"]
     client, session = make_client(live_settings, [FakeResponse(wrap(data))])
 
-    with pytest.raises(TokenNotFoundError, match="token bulunamadı"):
+    with pytest.raises(TokenNotFoundError, match="token not found"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
     assert len(session.calls) == 1
@@ -299,7 +299,7 @@ def test_fetch_keyword_empty_result(live_settings, sleeps):
     empty = {"default": {"rankedList": [{"rankedKeyword": []}, {"rankedKeyword": []}]}}
     client, session = make_client(live_settings, [FakeResponse(EXPLORE_TEXT), FakeResponse(wrap(empty))])
 
-    with pytest.raises(EmptyTrendsError, match="Boş veri döndü"):
+    with pytest.raises(EmptyTrendsError, match="Empty data returned"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
     assert len(session.calls) == 2
@@ -310,7 +310,7 @@ def test_fetch_keyword_non_json_response(live_settings, sleeps):
     """JSON yerine HTML gelirse açıklayıcı bir TrendsError fırlatılır."""
     client, _ = make_client(live_settings, [FakeResponse("<html>Sign in</html>")])
 
-    with pytest.raises(TrendsError, match="JSON olarak ayrıştırılamadı"):
+    with pytest.raises(TrendsError, match="could not be parsed as JSON"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
 
@@ -318,7 +318,7 @@ def test_fetch_keyword_unexpected_shape(live_settings, sleeps):
     """Related searches yanıtı beklenen yapıda değilse TrendsError fırlatılır."""
     client, _ = make_client(live_settings, [FakeResponse(EXPLORE_TEXT), FakeResponse(wrap(["liste"]))])
 
-    with pytest.raises(TrendsError, match="Beklenmeyen yanıt biçimi"):
+    with pytest.raises(TrendsError, match="Unexpected response format"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
 
@@ -367,7 +367,7 @@ def test_429_exhausts_retries(live_settings, sleeps):
     """Tüm denemeler 429 dönerse TrendsError fırlatılır; son denemeden sonra beklenmez."""
     client, session = make_client(live_settings, [FakeResponse(status_code=429)] * 3)
 
-    with pytest.raises(TrendsError, match="3 denemede başarısız: HTTP 429"):
+    with pytest.raises(TrendsError, match="Failed after 3 attempts: HTTP 429"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
     assert len(session.calls) == live_settings.MAX_RETRIES
@@ -390,7 +390,7 @@ def test_network_errors_exhaust_retries(live_settings, sleeps):
     """Bağlantı hiç kurulamazsa hata türünü içeren TrendsError fırlatılır."""
     client, _ = make_client(live_settings, [requests.ConnectionError("bağlantı koptu")] * 3)
 
-    with pytest.raises(TrendsError, match="3 denemede başarısız: ConnectionError"):
+    with pytest.raises(TrendsError, match="Failed after 3 attempts: ConnectionError"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
 
@@ -409,7 +409,7 @@ def test_other_request_errors_are_not_retried(live_settings, sleeps):
     """Geçici olmayan istek hataları (ör. yönlendirme döngüsü) beklemeden TrendsError'a çevrilir."""
     client, session = make_client(live_settings, [requests.TooManyRedirects("döngü")])
 
-    with pytest.raises(TrendsError, match="İstek başarısız: TooManyRedirects"):
+    with pytest.raises(TrendsError, match="Request failed: TooManyRedirects"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
     assert len(session.calls) == 1
@@ -421,7 +421,7 @@ def test_backoff_uses_settings(live_settings, sleeps):
     settings = live_settings.model_copy(update={"MAX_RETRIES": 4, "BACKOFF_BASE": 1})
     client, session = make_client(settings, [FakeResponse(status_code=429)] * 4)
 
-    with pytest.raises(TrendsError, match="4 denemede başarısız"):
+    with pytest.raises(TrendsError, match="Failed after 4 attempts"):
         client.fetch_keyword("ornek urun", geo="", timeframe="today 1-m")
 
     assert len(session.calls) == 4

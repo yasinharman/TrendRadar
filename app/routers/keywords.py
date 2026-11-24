@@ -16,7 +16,7 @@ router = APIRouter(prefix="/keywords", tags=["keywords"])
 DEFAULT_HISTORY_LIMIT = 10
 
 # Ürün hiç başarıyla taranmamışsa dönen mesaj
-NO_HISTORY_MESSAGE = "Bu keyword için başarılı tarama bulunamadı"
+NO_HISTORY_MESSAGE = "No successful scan found for this keyword"
 
 
 @router.get(
@@ -46,7 +46,7 @@ def keyword_history(
     """Keyword'ün son taramalarını sonuçlarıyla birlikte döner."""
     # Üst sınır ayarlardan gelir
     if limit > settings.MAX_PAGE_SIZE:
-        raise validation_error("query", "limit", f"limit en fazla {settings.MAX_PAGE_SIZE} olabilir")
+        raise validation_error("query", "limit", f"limit can be at most {settings.MAX_PAGE_SIZE}")
     # Limit kontrolü tamamlandı
 
     history = get_keyword_history(session, keyword, query_type, limit)

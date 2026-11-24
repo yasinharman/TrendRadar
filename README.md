@@ -136,16 +136,17 @@ rastgele beklenir); `429` yanıtında 30 ve 60 saniye beklenip tekrar denenir.
 
 ## Web arayüzü
 
-`http://127.0.0.1:8000/ui/` adresindeki arayüz API'nin her özelliğini tarayıcıdan kullandırır. Ayrı bir kurulum
-veya derleme adımı yoktur: `app/static/` altındaki üç dosyadan (HTML, CSS, sade JavaScript) oluşur ve API ile aynı
-süreçten sunulur. Kendi iş mantığı yoktur; yalnızca aşağıdaki endpoint'leri çağırır.
+`http://127.0.0.1:8000/ui/` adresindeki arayüz API'nin her özelliğini tarayıcıdan kullandırır. Arayüzün dili
+İngilizcedir. Ayrı bir kurulum veya derleme adımı yoktur: `app/static/` altındaki üç dosyadan (HTML, CSS, sade
+JavaScript) oluşur ve API ile aynı süreçten sunulur. Kendi iş mantığı yoktur; yalnızca aşağıdaki endpoint'leri
+çağırır.
 
 | Sekme | Ne yapar |
 |---|---|
-| **Taramalar** | Yeni tarama başlatır (ülke, tüm ülkelerin bulunduğu listeden seçilir), işleri ve kuyruk sırasını listeler, ilerlemeyi kendiliğinden yeniler. Seçilen taramanın ürün özetini, filtrelenebilir sonuç tablosunu ve CSV bağlantısını gösterir |
-| **Breakout'lar** | Tüm taramalardaki breakout aramaları ürüne ve tarihe göre süzer |
-| **Karşılaştır** | İki taramayı seçip listeye giren, çıkan ve değişen aramaları gösterir |
-| **Geçmiş** | Bir ürünün önceki taramalarını yan yana listeler |
+| **Scans** | Yeni tarama başlatır (ülke, tüm ülkelerin bulunduğu listeden seçilir), işleri ve kuyruk sırasını listeler, ilerlemeyi kendiliğinden yeniler. Seçilen taramanın ürün özetini, filtrelenebilir sonuç tablosunu ve CSV bağlantısını gösterir |
+| **Breakouts** | Tüm taramalardaki breakout aramaları ürüne ve tarihe göre süzer |
+| **Compare** | İki taramayı seçip listeye giren, çıkan ve değişen aramaları gösterir |
+| **History** | Bir ürünün önceki taramalarını yan yana listeler |
 
 Üst şeritte çalışma modu (mock/live) ve kuyruğun durumu görünür. Tarama sürerken detay panelindeki çalışma
 göstergesi o an taranan ürünü ve geçen süreyi gösterir; live modda bir ürün uzun sürerse bunun Google'ın hız
@@ -174,7 +175,8 @@ Genel kurallar:
 - Listeleme endpoint'leri `{"items": [...], "total": 123, "limit": 50, "offset": 0}` zarfıyla döner.
 - Zaman damgaları ISO 8601 biçiminde ve UTC'dir (`2026-11-23T13:30:00Z`).
 - Hatalar `{"detail": "..."}` biçimindedir. Doğrulama hatalarında (`422`) `detail`, hatalı alanı gösteren bir
-  listedir.
+  listedir. Hata mesajları, taramaların hata metinleri ve diff uyarıları İngilizcedir (web arayüzünde aynen
+  gösterilirler).
 - **Breakout:** yükselişi `BREAKOUT_THRESHOLD` (varsayılan %5000) ve üzerinde olan rising arama.
 
 ## Örnek akış
@@ -283,14 +285,14 @@ IP adresini gösteren bir `A` kaydı oluşturun.
 söyler; ziyaretçiler adresi portsuz (`https://trendradar.alanadiniz.com`) kullanır.
 
 **5. Deploy edin ve doğrulayın.** Adresi açtığınızda tarayıcı kullanıcı adı ve parola sormalı, girişten sonra web
-arayüzü açılmalı ve üst şeritte "Mock mod" yazmalıdır. Bir deneme taraması başlatın.
+arayüzü açılmalı ve üst şeritte "Mock mode" yazmalıdır. Bir deneme taraması başlatın.
 
 **6. Live moda geçin.**
 
 1. Cookie'leri [Live mod](#live-mod) bölümündeki gibi tarayıcınızdan JSON olarak dışa aktarın.
 2. Coolify'da kaynağın *Persistent Storage* ekranında `cookies.json` dosyası boş olarak listelenir; dışa aktardığınız
    JSON'u içeriğine yapıştırıp kaydedin. Dosya repoya ve Docker imajına girmez.
-3. `TRENDS_MODE` değişkenini `live` yapın ve yeniden deploy edin. Üst şeritte "Live mod" yazmalıdır.
+3. `TRENDS_MODE` değişkenini `live` yapın ve yeniden deploy edin. Üst şeritte "Live mode" yazmalıdır.
 
 Sorun giderme:
 

@@ -36,7 +36,7 @@ def test_health_returns_503_when_database_is_down(client):
     response = client.get("/health")
 
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-    assert response.json() == {"detail": "Veritabanına ulaşılamıyor"}
+    assert response.json() == {"detail": "Database is unreachable"}
 
 
 def test_swagger_docs_are_served(client):

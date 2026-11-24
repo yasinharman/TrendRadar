@@ -14,7 +14,7 @@ router = APIRouter(tags=["health"])
 STATUS_OK = "ok"
 
 # Veritabanı yanıt vermediğinde dönen mesaj
-DATABASE_DOWN_MESSAGE = "Veritabanına ulaşılamıyor"
+DATABASE_DOWN_MESSAGE = "Database is unreachable"
 
 
 @router.get(

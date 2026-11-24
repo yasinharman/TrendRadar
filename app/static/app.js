@@ -31,43 +31,43 @@ const SUCCESSFUL_STATUSES = ["completed", "partial"];
 
 // API değerlerinin ekranda görünen karşılıkları
 const JOB_STATUS_LABELS = {
-    pending: "Bekliyor",
-    running: "Çalışıyor",
-    completed: "Tamamlandı",
-    partial: "Kısmi",
-    failed: "Başarısız",
+    pending: "Pending",
+    running: "Running",
+    completed: "Completed",
+    partial: "Partial",
+    failed: "Failed",
 };
 const KEYWORD_STATUS_LABELS = {
-    pending: "Bekliyor",
-    success: "Başarılı",
-    failed: "Başarısız",
+    pending: "Pending",
+    success: "Success",
+    failed: "Failed",
 };
 // Çalışan taramada o an işlenen ürünün rozeti
-const SCANNING_LABEL = "Taranıyor";
+const SCANNING_LABEL = "Scanning";
 const TYPE_LABELS = {
     top: "Top",
     rising: "Rising",
 };
 const TIMEFRAME_LABELS = {
-    "now 7-d": "Son 7 gün",
-    "today 1-m": "Son 1 ay",
-    "today 3-m": "Son 3 ay",
-    "today 12-m": "Son 12 ay",
-    "today 5-y": "Son 5 yıl",
+    "now 7-d": "Past 7 days",
+    "today 1-m": "Past month",
+    "today 3-m": "Past 3 months",
+    "today 12-m": "Past 12 months",
+    "today 5-y": "Past 5 years",
 };
 const MODE_LABELS = {
-    mock: "Mock mod (örnek veri)",
-    live: "Live mod (gerçek Google Trends)",
+    mock: "Mock mode (sample data)",
+    live: "Live mode (Google Trends)",
 };
 
 // Ülke kodu boşsa gösterilen metin
-const WORLDWIDE_LABEL = "Dünya";
+const WORLDWIDE_LABEL = "Worldwide";
 
 // Sayıların, tarihlerin ve ülke adlarının biçimi
-const LOCALE = "tr-TR";
+const LOCALE = "en-GB";
 
 // Ülke listesi: ISO 3166-1 alpha-2 kodlarının tamamı. Adlar burada tutulmaz; tarayıcının
-// yerleşik ülke adlarından (Intl.DisplayNames) Türkçe olarak üretilir
+// yerleşik ülke adlarından (Intl.DisplayNames) arayüzün dilinde üretilir
 const COUNTRY_CODES = (
     "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ " +
     "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR " +
@@ -93,12 +93,12 @@ const SLOW_KEYWORD_SECONDS = 45;
 
 // Çalışma göstergesinde duruma göre gösterilen açıklamalar
 const ACTIVITY_HINTS = {
-    pending: "Taramalar sırayla işlenir; sıra gelince kendiliğinden başlar.",
-    mock: "Örnek veri üretiliyor.",
-    live: "Google Trends taranıyor; her ürün yaklaşık 10–25 saniye sürer.",
+    pending: "Scans run one at a time; this one starts automatically when its turn comes.",
+    mock: "Generating sample data.",
+    live: "Scanning Google Trends; each product takes about 10–25 seconds.",
     slow:
-        "Bu ürün beklenenden uzun sürüyor. Google büyük olasılıkla hız sınırı uyguladı; uygulama bekleyip " +
-        "kendiliğinden yeniden deniyor. Sayfayı açık tutmanıza gerek yok, tarama sunucuda sürer.",
+        "This product is taking longer than expected. Google has most likely applied a rate limit; the app waits " +
+        "and retries automatically. You can close this page: the scan continues on the server.",
 };
 
 // --- Durum ---
@@ -119,7 +119,7 @@ const state = {
     progressChangedAt: 0,
 };
 
-// Tarayıcının yerleşik Türkçe ülke adları (desteklenmiyorsa kodlar gösterilir)
+// Tarayıcının yerleşik ülke adları, arayüzün dilinde (desteklenmiyorsa kodlar gösterilir)
 const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames([LOCALE], { type: "region" }) : null;
 
 // --- Genel yardımcılar ---
@@ -186,12 +186,17 @@ function formatValue(type, value) {
     return type === "rising" ? `+${formatNumber(value)}%` : formatNumber(value);
 }
 
+/** Sayıyı adıyla birlikte yazar; birden fazlaysa adı çoğul yapar ("1 result", "25 results"). */
+function countLabel(count, noun) {
+    return `${formatNumber(count)} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 /** Ülke kodunu yazar; boş kod tüm dünya demektir. */
 function formatGeo(geo) {
     return geo ? `${countryName(geo)} (${geo})` : WORLDWIDE_LABEL;
 }
 
-/** Ülke kodunun Türkçe adını döner; ad bulunamazsa kodun kendisini. */
+/** Ülke kodunun arayüz dilindeki adını döner; ad bulunamazsa kodun kendisini. */
 function countryName(code) {
     try {
         return (regionNames && regionNames.of(code)) || code;
@@ -205,7 +210,7 @@ function formatDuration(totalSeconds) {
     const seconds = Math.max(Math.floor(totalSeconds), 0);
     const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
     const rest = seconds % SECONDS_PER_MINUTE;
-    return minutes === 0 ? `${rest} sn` : `${minutes} dk ${String(rest).padStart(2, "0")} sn`;
+    return minutes === 0 ? `${rest} s` : `${minutes} min ${String(rest).padStart(2, "0")} s`;
 }
 
 /** Zaman aralığının okunur adını döner. */
@@ -257,7 +262,7 @@ function errorMessage(data, status) {
             })
             .join(" • ");
     }
-    return `İstek başarısız oldu (HTTP ${status})`;
+    return `Request failed (HTTP ${status})`;
 }
 
 /**
@@ -286,7 +291,7 @@ async function api(path, options = {}) {
     try {
         response = await fetch(url, init);
     } catch {
-        throw new Error("Sunucuya ulaşılamadı");
+        throw new Error("Could not reach the server");
     }
     if (response.status === HTTP_NO_CONTENT) {
         return null;
@@ -317,7 +322,7 @@ function renderPager(container, page, onChange) {
     const last = Math.min(page.offset + page.limit, page.total);
 
     const previous = el("button", {
-        text: "Önceki",
+        text: "Previous",
         className: "small",
         attrs: { type: "button" },
         onClick: () => onChange(Math.max(page.offset - page.limit, 0)),
@@ -325,7 +330,7 @@ function renderPager(container, page, onChange) {
     previous.disabled = page.offset === 0;
 
     const next = el("button", {
-        text: "Sonraki",
+        text: "Next",
         className: "small",
         attrs: { type: "button" },
         onClick: () => onChange(page.offset + page.limit),
@@ -349,7 +354,7 @@ async function refreshHealth() {
 
     const { running, pending } = health.queue;
     byId("queue-info").textContent =
-        running + pending === 0 ? "Kuyruk boş" : `Kuyruk: ${running} çalışıyor, ${pending} bekliyor`;
+        running + pending === 0 ? "Queue empty" : `Queue: ${running} running, ${pending} waiting`;
     return health;
 }
 
@@ -358,7 +363,7 @@ async function refreshHealth() {
 /** Bir işin ilerleme metnini üretir; bekleyen işte kuyruk sırası da yazılır. */
 function progressText(job) {
     if (job.status === "pending" && job.queue_position !== null) {
-        return job.queue_position === 0 ? `${job.progress} · sıradaki` : `${job.progress} · önünde ${job.queue_position} iş`;
+        return job.queue_position === 0 ? `${job.progress} · next up` : `${job.progress} · ${job.queue_position} ahead`;
     }
     return job.progress;
 }
@@ -370,9 +375,9 @@ function deleteControls(job) {
     // Onay adımı: tarayıcı penceresi açmak yerine satır içinde sorulur
     if (state.confirmDeleteId === job.id) {
         cell.append(
-            el("span", { text: "Silinsin mi?", className: "muted" }),
+            el("span", { text: "Delete?", className: "muted" }),
             el("button", {
-                text: "Evet",
+                text: "Yes",
                 className: "small danger",
                 attrs: { type: "button" },
                 onClick: (event) => {
@@ -381,7 +386,7 @@ function deleteControls(job) {
                 },
             }),
             el("button", {
-                text: "Vazgeç",
+                text: "Cancel",
                 className: "small",
                 attrs: { type: "button" },
                 onClick: (event) => {
@@ -396,7 +401,7 @@ function deleteControls(job) {
     // Onay beklenmiyor
 
     const button = el("button", {
-        text: "Sil",
+        text: "Delete",
         className: "small danger",
         attrs: { type: "button" },
         onClick: (event) => {
@@ -408,7 +413,7 @@ function deleteControls(job) {
     // Çalışan iş silinemez (API 409 döner)
     if (job.status === "running") {
         button.disabled = true;
-        button.title = "Çalışan tarama silinemez";
+        button.title = "A running scan cannot be deleted";
     }
     cell.append(button);
     return cell;
@@ -459,7 +464,7 @@ async function createJob() {
         .map((line) => line.trim())
         .filter((line) => line !== "");
     if (keywords.length === 0) {
-        throw new Error("En az bir ürün adı yazın");
+        throw new Error("Enter at least one product name");
     }
     // Ürün listesi hazır
 
@@ -475,7 +480,7 @@ async function createJob() {
     const job = await api("/jobs", { method: "POST", body });
     byId("job-keywords").value = "";
     state.jobsOffset = 0;
-    showNotice(`Tarama #${job.id} kuyruğa alındı`, "success");
+    showNotice(`Scan #${job.id} queued`, "success");
     await selectJob(job.id);
     await tick();
 }
@@ -487,7 +492,7 @@ async function deleteJob(jobId) {
     if (state.selectedJobId === jobId) {
         closeJobDetail();
     }
-    showNotice(`Tarama #${jobId} silindi`, "success");
+    showNotice(`Scan #${jobId} deleted`, "success");
     await tick();
 }
 
@@ -507,14 +512,14 @@ function closeJobDetail() {
 /** Süren taramada o an ne yapıldığını anlatan başlığı üretir. */
 function activityTitle(job) {
     if (job.status === "pending") {
-        return job.queue_position ? `Sırada bekliyor: önünde ${job.queue_position} tarama var` : "Sırada: birazdan başlayacak";
+        return job.queue_position ? `Queued: ${countLabel(job.queue_position, "scan")} ahead` : "Queued: starting shortly";
     }
     // Ürünler sırayla işlenir; henüz bekleyen ilk ürün şu an taranandır
     const current = job.keywords.find((item) => item.status === "pending");
     if (!current) {
-        return "Tarama tamamlanıyor…";
+        return "Finishing scan…";
     }
-    return `Taranıyor: ${current.keyword} (${job.processed_keywords + 1}/${job.total_keywords})`;
+    return `Scanning: ${current.keyword} (${job.processed_keywords + 1}/${job.total_keywords})`;
 }
 
 /** Duruma göre açıklamayı seçer: sırada, örnek veri, gerçek tarama veya hız sınırı beklemesi. */
@@ -578,7 +583,7 @@ async function selectJob(jobId) {
     state.selectedJobStatus = null;
     state.activeJob = null;
     resetResultFilters();
-    byId("results-keyword").replaceChildren(el("option", { text: "Hepsi", attrs: { value: "" } }));
+    byId("results-keyword").replaceChildren(el("option", { text: "All", attrs: { value: "" } }));
     showView("jobs");
     await refreshSelectedJob();
     await refreshJobs();
@@ -612,17 +617,17 @@ async function refreshSelectedJob() {
     // Yanıt hâlâ geçerli
 
     // Başlık, durum ve zamanlar
-    byId("detail-title").textContent = `Tarama #${job.id}`;
+    byId("detail-title").textContent = `Scan #${job.id}`;
     const statusBadge = byId("detail-status");
     statusBadge.textContent = JOB_STATUS_LABELS[job.status] || job.status;
     statusBadge.className = `badge ${job.status}`;
     byId("detail-meta").textContent = [
-        `Ülke: ${formatGeo(job.geo)}`,
-        `Aralık: ${formatTimeframe(job.timeframe)}`,
-        `İlerleme: ${progressText(job)}`,
-        `Oluşturulma: ${formatDate(job.created_at)}`,
-        `Başlangıç: ${formatDate(job.started_at)}`,
-        `Bitiş: ${formatDate(job.finished_at)}`,
+        `Country: ${formatGeo(job.geo)}`,
+        `Range: ${formatTimeframe(job.timeframe)}`,
+        `Progress: ${progressText(job)}`,
+        `Created: ${formatDate(job.created_at)}`,
+        `Started: ${formatDate(job.started_at)}`,
+        `Finished: ${formatDate(job.finished_at)}`,
     ].join("  ·  ");
     const percent = job.total_keywords === 0 ? 0 : (job.processed_keywords / job.total_keywords) * FULL_PERCENT;
     byId("detail-progress-bar").style.width = `${percent}%`;
@@ -710,11 +715,11 @@ async function loadResults() {
     }
 
     // Sonuç yoksa nedeni yazılır: tarama henüz sürüyor olabilir veya filtreler hiçbir kaydı tutmuyordur
-    let summary = `${formatNumber(page.total)} sonuç`;
+    let summary = countLabel(page.total, "result");
     if (page.total === 0) {
         summary = ACTIVE_STATUSES.includes(state.selectedJobStatus)
-            ? "Henüz sonuç yok; ürünler tarandıkça burada görünecek."
-            : "Bu filtrelerle sonuç yok.";
+            ? "No results yet; they appear here as products are scanned."
+            : "No results match these filters.";
     }
     byId("results-summary").textContent = summary;
     renderPager(byId("results-pager"), page, (offset) => {
@@ -780,7 +785,7 @@ async function loadBreakouts() {
     }
 
     byId("breakouts-summary").textContent =
-        page.total === 0 ? "Breakout bulunamadı." : `${formatNumber(page.total)} breakout`;
+        page.total === 0 ? "No breakouts found." : countLabel(page.total, "breakout");
     renderPager(byId("breakouts-pager"), page, (offset) => {
         state.breakoutsOffset = offset;
         guarded(loadBreakouts);
@@ -800,7 +805,7 @@ async function loadDiffOptions() {
     for (const select of [fromSelect, toSelect]) {
         select.replaceChildren();
         for (const job of jobs) {
-            const label = `#${job.id} · ${formatDate(job.created_at)} · ${job.total_keywords} ürün`;
+            const label = `#${job.id} · ${formatDate(job.created_at)} · ${countLabel(job.total_keywords, "product")}`;
             select.append(el("option", { text: label, attrs: { value: String(job.id) } }));
         }
     }
@@ -838,17 +843,17 @@ function diffItemList(title, items, className, sign) {
 /** Değeri veya sırası değişen aramaların tablosunu üretir. */
 function diffChangeTable(changes) {
     const wrapper = el("div");
-    wrapper.append(el("p", { text: `Değişen (${changes.length})`, className: "sub-title" }));
+    wrapper.append(el("p", { text: `Changed (${changes.length})`, className: "sub-title" }));
     if (changes.length === 0) {
         wrapper.append(el("p", { text: "—", className: "muted" }));
         return wrapper;
     }
 
     const head = el("tr", {}, [
-        el("th", { text: "Arama" }),
-        el("th", { text: "Değer", className: "num" }),
-        el("th", { text: "Fark", className: "num" }),
-        el("th", { text: "Sıra", className: "num" }),
+        el("th", { text: "Query" }),
+        el("th", { text: "Value", className: "num" }),
+        el("th", { text: "Change", className: "num" }),
+        el("th", { text: "Rank", className: "num" }),
     ]);
     const body = el("tbody");
     for (const change of changes) {
@@ -876,8 +881,8 @@ function diffChangeTable(changes) {
 function diffTypeSection(title, section) {
     return el("div", {}, [
         el("h3", { text: title }),
-        diffItemList("Yeni giren", section.new, "added", "+"),
-        diffItemList("Çıkan", section.dropped, "removed", "−"),
+        diffItemList("New", section.new, "added", "+"),
+        diffItemList("Dropped", section.dropped, "removed", "−"),
         diffChangeTable(section.changed),
     ]);
 }
@@ -898,18 +903,18 @@ async function loadDiff() {
 
     // Uyarılar ve yalnızca tek taramada bulunan ürünler
     const summary = el("div", { className: "card" });
-    summary.append(el("h2", { text: `Tarama #${diff.from_job} → #${diff.to_job}` }));
+    summary.append(el("h2", { text: `Scan #${diff.from_job} → #${diff.to_job}` }));
     for (const warning of diff.warnings) {
-        summary.append(el("p", { text: `Uyarı: ${warning}`, className: "warning-box" }));
+        summary.append(el("p", { text: `Warning: ${warning}`, className: "warning-box" }));
     }
     if (diff.only_in_from.length > 0) {
-        summary.append(el("p", { text: `Yalnızca eski taramada: ${diff.only_in_from.join(", ")}`, className: "muted" }));
+        summary.append(el("p", { text: `Only in the old scan: ${diff.only_in_from.join(", ")}`, className: "muted" }));
     }
     if (diff.only_in_to.length > 0) {
-        summary.append(el("p", { text: `Yalnızca yeni taramada: ${diff.only_in_to.join(", ")}`, className: "muted" }));
+        summary.append(el("p", { text: `Only in the new scan: ${diff.only_in_to.join(", ")}`, className: "muted" }));
     }
     if (diff.keywords.length === 0) {
-        summary.append(el("p", { text: "İki taramada da başarılı olan ortak ürün yok." }));
+        summary.append(el("p", { text: "No product succeeded in both scans." }));
     }
     output.append(summary);
     // Özet çizildi
@@ -948,9 +953,9 @@ function historyTable(title, type, items) {
         );
     }
     const head = el("tr", {}, [
-        el("th", { text: "Sıra", className: "num" }),
-        el("th", { text: "Arama" }),
-        el("th", { text: "Değer", className: "num" }),
+        el("th", { text: "Rank", className: "num" }),
+        el("th", { text: "Query" }),
+        el("th", { text: "Value", className: "num" }),
         el("th"),
     ]);
     wrapper.append(el("div", { className: "table-wrap" }, [el("table", {}, [el("thead", {}, [head]), body])]));
@@ -961,7 +966,7 @@ function historyTable(title, type, items) {
 async function loadHistory() {
     const keyword = byId("history-keyword").value.trim();
     if (keyword === "") {
-        throw new Error("Bir ürün adı yazın");
+        throw new Error("Enter a product name");
     }
     const output = byId("history-output");
     output.replaceChildren();
@@ -973,13 +978,13 @@ async function loadHistory() {
 
     for (const scan of history.scans) {
         const jobLink = el("button", {
-            text: `Tarama #${scan.job_id}`,
+            text: `Scan #${scan.job_id}`,
             className: "link",
             attrs: { type: "button" },
             onClick: () => guarded(() => selectJob(scan.job_id)),
         });
-        const meta = `${formatDate(scan.scanned_at)}  ·  Ülke: ${formatGeo(scan.geo)}  ·  ` +
-            `Aralık: ${formatTimeframe(scan.timeframe)}`;
+        const meta = `${formatDate(scan.scanned_at)}  ·  Country: ${formatGeo(scan.geo)}  ·  ` +
+            `Range: ${formatTimeframe(scan.timeframe)}`;
         output.append(
             el("div", { className: "card" }, [
                 el("div", { className: "card-head" }, [el("h2", { text: history.keyword }), jobLink]),
@@ -1032,7 +1037,7 @@ function onSubmit(formId, action) {
     });
 }
 
-/** Ülke seçimini doldurur: önce en sık seçilen ülke, sonra diğerleri Türkçe ada göre sıralı. */
+/** Ülke seçimini doldurur: önce en sık seçilen ülke, sonra diğerleri ada göre alfabetik. */
 function fillCountryOptions() {
     const countries = COUNTRY_CODES.filter((code) => code !== PINNED_COUNTRY_CODE)
         .map((code) => ({ code, name: countryName(code) }))

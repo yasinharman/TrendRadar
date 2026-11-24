@@ -62,7 +62,7 @@ def breakouts(
         status.HTTP_404_NOT_FOUND: error_response("İşlerden biri bulunamadı", JOB_NOT_FOUND_MESSAGE),
         status.HTTP_409_CONFLICT: error_response(
             "İşlerden biri henüz tamamlanmadı veya başarısız oldu",
-            "Job 7 'running' durumunda; yalnızca completed veya partial işler karşılaştırılabilir",
+            "Job 7 is 'running'; only completed or partial jobs can be compared",
         ),
     },
 )
@@ -85,7 +85,7 @@ def diff(
     """İki job'ı doğrular ve karşılaştırma sonucunu döner."""
     # Bir taramanın kendisiyle karşılaştırılması anlamsızdır
     if from_job == to_job:
-        raise validation_error("query", "to_job", "from_job ve to_job farklı olmalı")
+        raise validation_error("query", "to_job", "from_job and to_job must be different")
     # Parametre kontrolü tamamlandı
 
     # Her iki job da var olmalı ve sonuç üretmiş olmalı
@@ -95,8 +95,7 @@ def diff(
         if job.status not in SUCCESSFUL_STATUSES:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Job {job.id} '{job.status.value}' durumunda; "
-                "yalnızca completed veya partial işler karşılaştırılabilir",
+                detail=f"Job {job.id} is '{job.status.value}'; only completed or partial jobs can be compared",
             )
     # Job'lar doğrulandı
 

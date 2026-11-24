@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,15 +17,15 @@
     <h1>TrendRadar</h1>
     <span id="mode-badge" class="badge" hidden></span>
     <span id="queue-info" class="muted"></span>
-    <a class="topbar-link" href="/docs">API belgesi</a>
+    <a class="topbar-link" href="/docs">API docs</a>
 </header>
 
 <!-- Sekmeler -->
-<nav class="tabs" aria-label="Bölümler">
-    <button type="button" class="tab active" data-view="jobs">Taramalar</button>
-    <button type="button" class="tab" data-view="breakouts">Breakout'lar</button>
-    <button type="button" class="tab" data-view="diff">Karşılaştır</button>
-    <button type="button" class="tab" data-view="history">Geçmiş</button>
+<nav class="tabs" aria-label="Sections">
+    <button type="button" class="tab active" data-view="jobs">Scans</button>
+    <button type="button" class="tab" data-view="breakouts">Breakouts</button>
+    <button type="button" class="tab" data-view="diff">Compare</button>
+    <button type="button" class="tab" data-view="history">History</button>
 </nav>
 
 <main>
@@ -36,52 +36,52 @@
     <section id="view-jobs" class="view">
         <div class="grid">
             <form id="job-form" class="card">
-                <h2>Yeni tarama</h2>
-                <label for="job-keywords">Ürün adları <span class="muted">(her satıra bir ürün)</span></label>
+                <h2>New scan</h2>
+                <label for="job-keywords">Product names <span class="muted">(one per line)</span></label>
                 <textarea id="job-keywords" rows="6" required
                           placeholder="Camera Bags&#10;Backpacks&#10;Tote Bags"></textarea>
 
-                <label for="job-geo">Ülke</label>
-                <!-- Ülkeler betikle eklenir (adlar tarayıcının Türkçe ülke adlarından gelir) -->
+                <label for="job-geo">Country</label>
+                <!-- Ülkeler betikle eklenir (adlar tarayıcının yerleşik ülke adlarından gelir) -->
                 <select id="job-geo">
-                    <option value="">Tüm dünya</option>
+                    <option value="">Worldwide</option>
                 </select>
 
-                <label for="job-timeframe">Zaman aralığı</label>
+                <label for="job-timeframe">Time range</label>
                 <select id="job-timeframe">
-                    <option value="">Sunucu varsayılanı</option>
-                    <option value="now 7-d">Son 7 gün</option>
-                    <option value="today 1-m">Son 1 ay</option>
-                    <option value="today 3-m">Son 3 ay</option>
-                    <option value="today 12-m">Son 12 ay</option>
-                    <option value="today 5-y">Son 5 yıl</option>
+                    <option value="">Server default</option>
+                    <option value="now 7-d">Past 7 days</option>
+                    <option value="today 1-m">Past month</option>
+                    <option value="today 3-m">Past 3 months</option>
+                    <option value="today 12-m">Past 12 months</option>
+                    <option value="today 5-y">Past 5 years</option>
                 </select>
 
-                <button type="submit" class="primary">Taramayı başlat</button>
+                <button type="submit" class="primary">Start scan</button>
             </form>
 
             <div class="card">
                 <div class="card-head">
-                    <h2>Taramalar</h2>
-                    <button type="button" id="jobs-refresh">Yenile</button>
+                    <h2>Scans</h2>
+                    <button type="button" id="jobs-refresh">Refresh</button>
                 </div>
                 <div class="table-wrap">
                     <table>
                         <thead>
                         <tr>
                             <th>#</th>
-                            <th>Durum</th>
-                            <th>İlerleme</th>
-                            <th>Ülke</th>
-                            <th>Aralık</th>
-                            <th>Oluşturulma</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Country</th>
+                            <th>Range</th>
+                            <th>Created</th>
                             <th></th>
                         </tr>
                         </thead>
                         <tbody id="jobs-body"></tbody>
                     </table>
                 </div>
-                <p id="jobs-empty" class="muted" hidden>Henüz tarama yok. Soldaki formdan ilk taramayı başlatın.</p>
+                <p id="jobs-empty" class="muted" hidden>No scans yet. Use the form to start your first scan.</p>
                 <div id="jobs-pager" class="pager"></div>
             </div>
         </div>
@@ -91,7 +91,7 @@
             <div class="card-head">
                 <h2 id="detail-title"></h2>
                 <span id="detail-status" class="badge"></span>
-                <a id="detail-csv" class="button" hidden>CSV indir</a>
+                <a id="detail-csv" class="button" hidden>Download CSV</a>
             </div>
             <p id="detail-meta" class="muted"></p>
             <div id="detail-progress" class="progress" aria-hidden="true">
@@ -110,58 +110,58 @@
 
             <p id="detail-error" class="error-text" hidden></p>
 
-            <h3>Ürünler</h3>
+            <h3>Products</h3>
             <div class="table-wrap">
                 <table>
                     <thead>
                     <tr>
-                        <th>Ürün</th>
-                        <th>Durum</th>
+                        <th>Product</th>
+                        <th>Status</th>
                         <th class="num">Top</th>
                         <th class="num">Rising</th>
-                        <th>Hata</th>
+                        <th>Error</th>
                     </tr>
                     </thead>
                     <tbody id="detail-keywords"></tbody>
                 </table>
             </div>
 
-            <h3>Sonuçlar</h3>
+            <h3>Results</h3>
             <form id="results-form" class="filters">
-                <label>Tür
+                <label>Type
                     <select id="results-type">
-                        <option value="">Hepsi</option>
+                        <option value="">All</option>
                         <option value="top">Top</option>
                         <option value="rising">Rising</option>
                     </select>
                 </label>
-                <label>Ürün
+                <label>Product
                     <select id="results-keyword">
-                        <option value="">Hepsi</option>
+                        <option value="">All</option>
                     </select>
                 </label>
-                <label>En düşük değer
+                <label>Minimum value
                     <input id="results-min-value" type="number" min="0" step="1">
                 </label>
-                <label>Aramada geçen
+                <label>Query contains
                     <input id="results-search" type="search">
                 </label>
                 <label class="check">
-                    <input id="results-breakout" type="checkbox"> Yalnızca breakout
+                    <input id="results-breakout" type="checkbox"> Breakouts only
                 </label>
-                <button type="submit">Filtrele</button>
-                <button type="button" id="results-reset">Temizle</button>
+                <button type="submit">Filter</button>
+                <button type="button" id="results-reset">Clear</button>
             </form>
             <p id="results-summary" class="muted"></p>
             <div class="table-wrap">
                 <table>
                     <thead>
                     <tr>
-                        <th>Ürün</th>
-                        <th>Tür</th>
-                        <th class="num">Sıra</th>
-                        <th>Arama</th>
-                        <th class="num">Değer</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th class="num">Rank</th>
+                        <th>Query</th>
+                        <th class="num">Value</th>
                         <th></th>
                     </tr>
                     </thead>
@@ -175,27 +175,27 @@
     <!-- ================= Breakout'lar ================= -->
     <section id="view-breakouts" class="view" hidden>
         <div class="card">
-            <h2>Breakout aramalar</h2>
-            <p class="muted">Tüm taramalarda, yükseliş değeri breakout eşiğini geçen aramalar (en yüksek değer önce).</p>
+            <h2>Breakout queries</h2>
+            <p class="muted">Rising queries from all scans whose growth reached the breakout threshold, highest value first.</p>
             <form id="breakouts-form" class="filters">
-                <label>Ürün
+                <label>Product
                     <input id="breakouts-keyword" type="text" placeholder="Camera Bags">
                 </label>
-                <label>Şu tarihten sonra
+                <label>Scanned after
                     <input id="breakouts-since" type="datetime-local">
                 </label>
-                <button type="submit">Filtrele</button>
+                <button type="submit">Filter</button>
             </form>
             <p id="breakouts-summary" class="muted"></p>
             <div class="table-wrap">
                 <table>
                     <thead>
                     <tr>
-                        <th>Ürün</th>
-                        <th>Arama</th>
-                        <th class="num">Değer</th>
-                        <th>Tarama</th>
-                        <th>Tarih</th>
+                        <th>Product</th>
+                        <th>Query</th>
+                        <th class="num">Value</th>
+                        <th>Scan</th>
+                        <th>Date</th>
                     </tr>
                     </thead>
                     <tbody id="breakouts-body"></tbody>
@@ -208,28 +208,28 @@
     <!-- ================= Karşılaştır ================= -->
     <section id="view-diff" class="view" hidden>
         <div class="card">
-            <h2>İki taramayı karşılaştır</h2>
-            <p class="muted">Her iki taramada da başarılı olan ortak ürünler için listeye giren, çıkan ve değişen aramalar.</p>
+            <h2>Compare two scans</h2>
+            <p class="muted">New, dropped and changed queries for the products that succeeded in both scans.</p>
             <form id="diff-form" class="filters">
-                <label>Eski tarama
+                <label>Old scan
                     <select id="diff-from" required></select>
                 </label>
-                <label>Yeni tarama
+                <label>New scan
                     <select id="diff-to" required></select>
                 </label>
-                <label>Ürün
-                    <input id="diff-keyword" type="text" placeholder="Hepsi">
+                <label>Product
+                    <input id="diff-keyword" type="text" placeholder="All">
                 </label>
-                <label>Tür
+                <label>Type
                     <select id="diff-type">
-                        <option value="">Hepsi</option>
+                        <option value="">All</option>
                         <option value="top">Top</option>
                         <option value="rising">Rising</option>
                     </select>
                 </label>
-                <button type="submit" class="primary">Karşılaştır</button>
+                <button type="submit" class="primary">Compare</button>
             </form>
-            <p id="diff-empty" class="muted" hidden>Karşılaştırmak için tamamlanmış en az iki tarama gerekir.</p>
+            <p id="diff-empty" class="muted" hidden>You need at least two completed scans to compare.</p>
         </div>
         <div id="diff-output"></div>
     </section>
@@ -237,20 +237,20 @@
     <!-- ================= Geçmiş ================= -->
     <section id="view-history" class="view" hidden>
         <div class="card">
-            <h2>Ürün geçmişi</h2>
-            <p class="muted">Bir ürünün başarılı taramaları, en yeniden eskiye.</p>
+            <h2>Product history</h2>
+            <p class="muted">Successful scans of a product, newest first.</p>
             <form id="history-form" class="filters">
-                <label>Ürün
+                <label>Product
                     <input id="history-keyword" type="text" placeholder="Camera Bags" required>
                 </label>
-                <label>Tür
+                <label>Type
                     <select id="history-type">
-                        <option value="">Hepsi</option>
+                        <option value="">All</option>
                         <option value="top">Top</option>
                         <option value="rising">Rising</option>
                     </select>
                 </label>
-                <button type="submit" class="primary">Geçmişi getir</button>
+                <button type="submit" class="primary">Show history</button>
             </form>
         </div>
         <div id="history-output"></div>

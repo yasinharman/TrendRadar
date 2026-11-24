@@ -18,7 +18,7 @@ BASIC_SCHEME = "basic"
 AUTH_CHALLENGE = 'Basic realm="TrendRadar", charset="UTF-8"'
 
 # Yetkisiz isteğe dönen mesaj
-UNAUTHORIZED_MESSAGE = "Kimlik doğrulama gerekli"
+UNAUTHORIZED_MESSAGE = "Authentication required"
 
 # Yetkisiz isteğe dönen durum kodu
 UNAUTHORIZED_STATUS = 401

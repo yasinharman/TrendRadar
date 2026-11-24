@@ -198,9 +198,9 @@ def build_diff(
     # Parametreleri farklı taramaların karşılaştırması yanıltıcı olabilir: hata değil, uyarı
     warnings = []
     if from_job.geo != to_job.geo:
-        warnings.append(f"geo farklı: '{from_job.geo}' → '{to_job.geo}'")
+        warnings.append(f"geo differs: '{from_job.geo}' → '{to_job.geo}'")
     if from_job.timeframe != to_job.timeframe:
-        warnings.append(f"timeframe farklı: '{from_job.timeframe}' → '{to_job.timeframe}'")
+        warnings.append(f"timeframe differs: '{from_job.timeframe}' → '{to_job.timeframe}'")
     # Uyarılar belirlendi
 
     # Her iki taramanın başarılı keyword'lerini eşleştir

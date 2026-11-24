@@ -137,7 +137,7 @@ class DiffResponse(BaseModel):
             "example": {
                 "from_job": 3,
                 "to_job": 7,
-                "warnings": ["geo farklı: '' → 'TR'"],
+                "warnings": ["geo differs: '' → 'TR'"],
                 "keywords": [
                     {
                         "keyword": "Camera Bags",

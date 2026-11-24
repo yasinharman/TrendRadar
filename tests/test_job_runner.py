@@ -129,10 +129,10 @@ def test_mixed_results_give_partial(file_engine, file_settings, trends_client):
     assert job.processed_keywords == 3
     assert camera.status == KeywordStatus.success
     assert fail.status == KeywordStatus.failed
-    assert fail.error_message == "TrendsError: Mock: bu keyword için tarama hatası simüle edildi"
+    assert fail.error_message == "TrendsError: Mock: simulated scan failure for this keyword"
     assert fail.results == []
     assert empty.status == KeywordStatus.failed
-    assert empty.error_message == "EmptyTrendsError: Boş veri döndü (top ve rising her ikisi de boş)"
+    assert empty.error_message == "EmptyTrendsError: Empty data returned (both top and rising are empty)"
 
 
 def test_no_success_gives_failed(file_engine, file_settings, trends_client):

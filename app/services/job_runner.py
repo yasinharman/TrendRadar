@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 _worker_lock = threading.Lock()
 
 # Sunucu yarıda kapanınca çalışır durumda kalan job'lara yazılan mesaj
-INTERRUPTED_MESSAGE = "Sunucu yeniden başlatıldığı için yarıda kesildi"
+INTERRUPTED_MESSAGE = "Interrupted because the server was restarted"
 
 # Google'ın döndürdüğü sıra 1'den başlar
 FIRST_RANK = 1
