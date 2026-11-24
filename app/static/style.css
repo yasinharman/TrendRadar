@@ -408,6 +408,95 @@ td.actions button {
     transition: width 0.3s ease;
 }
 
+/* Tarama sürerken çubuğun üzerinden ışık geçer; ilerleme yüzdesi değişmese de hareket görünür */
+.progress.active {
+    position: relative;
+}
+
+.progress.active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 35%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.55;
+    animation: sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes sweep {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(290%);
+    }
+}
+
+/* --- Çalışma göstergesi --- */
+.activity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background: var(--info-bg);
+    color: var(--info);
+}
+
+.activity-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity p {
+    margin: 0;
+}
+
+.activity-title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.activity .muted {
+    font-size: 13px;
+}
+
+.activity-elapsed {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.spinner {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 3px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Hareket azaltma tercihinde animasyonlar yavaşlatılır; gösterge yine görünür kalır */
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation-duration: 3s;
+    }
+
+    .progress.active::after {
+        animation: none;
+        width: 100%;
+        opacity: 0.25;
+    }
+}
+
 /* --- Mesaj kutusu --- */
 .notice {
     padding: 10px 14px;

@@ -7,7 +7,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.core.auth import BasicAuthMiddleware
@@ -123,7 +122,7 @@ def create_app(settings: Settings | None = None, trends_client: TrendsClient | N
 
     # Web arayüzü: statik dosyalar /ui altında sunulur, kök adres oraya yönlendirir
     app.include_router(ui.router)
-    app.mount(ui.UI_PATH, StaticFiles(directory=ui.STATIC_DIR, html=True), name="ui")
+    app.mount(ui.UI_PATH, ui.UIStaticFiles(directory=ui.STATIC_DIR, html=True), name="ui")
     # Web arayüzü hazır
 
     return app

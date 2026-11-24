@@ -142,13 +142,15 @@ süreçten sunulur. Kendi iş mantığı yoktur; yalnızca aşağıdaki endpoint
 
 | Sekme | Ne yapar |
 |---|---|
-| **Taramalar** | Yeni tarama başlatır, işleri ve kuyruk sırasını listeler, ilerlemeyi kendiliğinden yeniler. Seçilen taramanın ürün özetini, filtrelenebilir sonuç tablosunu ve CSV bağlantısını gösterir |
+| **Taramalar** | Yeni tarama başlatır (ülke, tüm ülkelerin bulunduğu listeden seçilir), işleri ve kuyruk sırasını listeler, ilerlemeyi kendiliğinden yeniler. Seçilen taramanın ürün özetini, filtrelenebilir sonuç tablosunu ve CSV bağlantısını gösterir |
 | **Breakout'lar** | Tüm taramalardaki breakout aramaları ürüne ve tarihe göre süzer |
 | **Karşılaştır** | İki taramayı seçip listeye giren, çıkan ve değişen aramaları gösterir |
 | **Geçmiş** | Bir ürünün önceki taramalarını yan yana listeler |
 
-Üst şeritte çalışma modu (mock/live) ve kuyruğun durumu görünür. Parola koruması açıksa arayüz de kullanıcı adı ve
-parola ister.
+Üst şeritte çalışma modu (mock/live) ve kuyruğun durumu görünür. Tarama sürerken detay panelindeki çalışma
+göstergesi o an taranan ürünü ve geçen süreyi gösterir; live modda bir ürün uzun sürerse bunun Google'ın hız
+sınırından kaynaklandığını ve uygulamanın kendiliğinden yeniden denediğini açıklar. Parola koruması açıksa arayüz de
+kullanıcı adı ve parola ister.
 
 ## Endpoint'ler
 

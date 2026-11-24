@@ -10,14 +10,17 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings, Timeframe
+from app.core.config import GEO_PATTERN, Settings, Timeframe
 from app.db.models import JobStatus, KeywordStatus, QueryType
 from app.main import create_app
-from app.routers.ui import STATIC_DIR, UI_PATH
+from app.routers.ui import REVALIDATE_ALWAYS, STATIC_DIR, UI_PATH
 from app.services.trends.mock_client import MockTrendsClient
 
 # HTML olarak yorumlanan yazma yöntemleri: API'den gelen metinler bunlarla yazılırsa XSS oluşur
 UNSAFE_DOM_WRITES = [".innerHTML", ".outerHTML", "insertAdjacentHTML", "document.write"]
+
+# ISO 3166-1 alpha-2 standardındaki ülke/bölge kodu sayısı
+ISO_COUNTRY_COUNT = 249
 
 
 def read_static(name: str) -> str:
@@ -61,6 +64,21 @@ def test_ui_assets_are_served(client, name, content_type):
     assert response.status_code == status.HTTP_200_OK
     assert content_type in response.headers["content-type"]
     assert f'"{name}"' in read_static("index.html")
+
+
+@pytest.mark.parametrize("name", ["", "app.js", "style.css"])
+def test_ui_files_are_always_revalidated(client, name):
+    """Tarayıcı arayüz dosyalarını sormadan önbellekten kullanamaz; değişmeyen dosya için 304 alır."""
+    first = client.get(f"{UI_PATH}/{name}")
+
+    assert first.headers["cache-control"] == REVALIDATE_ALWAYS
+
+    # Tarayıcının elindeki kopya günceldir: gövde yeniden gönderilmez
+    second = client.get(f"{UI_PATH}/{name}", headers={"If-None-Match": first.headers["etag"]})
+
+    assert second.status_code == status.HTTP_304_NOT_MODIFIED
+    assert second.headers["cache-control"] == REVALIDATE_ALWAYS
+    assert second.content == b""
 
 
 def test_unknown_ui_file_returns_404(client):
@@ -114,6 +132,26 @@ def test_script_labels_cover_api_values():
     assert label_map(script, "KEYWORD_STATUS_LABELS") == {item.value for item in KeywordStatus}
     assert label_map(script, "TYPE_LABELS") == {item.value for item in QueryType}
     assert label_map(script, "TIMEFRAME_LABELS") == set(get_args(Timeframe))
+
+
+def test_country_codes_are_valid_and_complete():
+    """Ülke listesi ISO 3166-1 kodlarının tamamını içerir; her kod API'nin kabul ettiği biçimdedir."""
+    block = re.search(r"const COUNTRY_CODES = \((.*?)\)\.split", read_static("app.js"), re.DOTALL).group(1)
+    codes = " ".join(re.findall(r'"([^"]*)"', block)).split()
+
+    assert len(codes) == ISO_COUNTRY_COUNT
+    assert len(set(codes)) == len(codes)
+    assert codes == sorted(codes)
+    assert all(re.fullmatch(GEO_PATTERN, code) and code for code in codes)
+    assert {"TR", "US", "DE", "GB", "JP"} <= set(codes)
+
+
+def test_country_field_is_a_dropdown_defaulting_to_worldwide():
+    """Ülke elle yazılmaz; açılır listeden seçilir ve ilk seçenek tüm dünyadır."""
+    page = read_static("index.html")
+
+    assert re.search(r'<select id="job-geo">\s*<option value="">Tüm dünya</option>', page)
+    assert '<input id="job-geo"' not in page
 
 
 # --- Güvenlik ---

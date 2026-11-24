@@ -42,6 +42,8 @@ const KEYWORD_STATUS_LABELS = {
     success: "Başarılı",
     failed: "Başarısız",
 };
+// Çalışan taramada o an işlenen ürünün rozeti
+const SCANNING_LABEL = "Taranıyor";
 const TYPE_LABELS = {
     top: "Top",
     rising: "Rising",
@@ -61,8 +63,43 @@ const MODE_LABELS = {
 // Ülke kodu boşsa gösterilen metin
 const WORLDWIDE_LABEL = "Dünya";
 
-// Sayıların ve tarihlerin biçimi
+// Sayıların, tarihlerin ve ülke adlarının biçimi
 const LOCALE = "tr-TR";
+
+// Ülke listesi: ISO 3166-1 alpha-2 kodlarının tamamı. Adlar burada tutulmaz; tarayıcının
+// yerleşik ülke adlarından (Intl.DisplayNames) Türkçe olarak üretilir
+const COUNTRY_CODES = (
+    "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ " +
+    "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR " +
+    "GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT " +
+    "JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY " +
+    "MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM " +
+    "PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ " +
+    "TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
+).split(" ");
+
+// Listenin başına alınan ülke (en sık seçilen)
+const PINNED_COUNTRY_CODE = "TR";
+
+// Çalışma göstergesindeki sürenin yenilenme aralığı
+const ELAPSED_TICK_MS = 1000;
+
+// Süre hesabı birimleri
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+
+// Live modda bir ürün bu kadar saniyeden uzun sürerse gecikmenin nedeni kullanıcıya açıklanır
+const SLOW_KEYWORD_SECONDS = 45;
+
+// Çalışma göstergesinde duruma göre gösterilen açıklamalar
+const ACTIVITY_HINTS = {
+    pending: "Taramalar sırayla işlenir; sıra gelince kendiliğinden başlar.",
+    mock: "Örnek veri üretiliyor.",
+    live: "Google Trends taranıyor; her ürün yaklaşık 10–25 saniye sürer.",
+    slow:
+        "Bu ürün beklenenden uzun sürüyor. Google büyük olasılıkla hız sınırı uyguladı; uygulama bekleyip " +
+        "kendiliğinden yeniden deniyor. Sayfayı açık tutmanıza gerek yok, tarama sunucuda sürer.",
+};
 
 // --- Durum ---
 
@@ -75,7 +112,15 @@ const state = {
     breakoutsOffset: 0,
     pollTimer: null,
     noticeTimer: null,
+    // Çalışma göstergesi: sunucunun modu, süren seçili tarama ve ilerlemenin en son değiştiği an
+    mode: null,
+    activeJob: null,
+    progressKey: null,
+    progressChangedAt: 0,
 };
+
+// Tarayıcının yerleşik Türkçe ülke adları (desteklenmiyorsa kodlar gösterilir)
+const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames([LOCALE], { type: "region" }) : null;
 
 // --- Genel yardımcılar ---
 
@@ -143,7 +188,24 @@ function formatValue(type, value) {
 
 /** Ülke kodunu yazar; boş kod tüm dünya demektir. */
 function formatGeo(geo) {
-    return geo || WORLDWIDE_LABEL;
+    return geo ? `${countryName(geo)} (${geo})` : WORLDWIDE_LABEL;
+}
+
+/** Ülke kodunun Türkçe adını döner; ad bulunamazsa kodun kendisini. */
+function countryName(code) {
+    try {
+        return (regionNames && regionNames.of(code)) || code;
+    } catch {
+        return code;
+    }
+}
+
+/** Saniyeyi "45 sn" veya "2 dk 05 sn" biçiminde yazar. */
+function formatDuration(totalSeconds) {
+    const seconds = Math.max(Math.floor(totalSeconds), 0);
+    const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
+    const rest = seconds % SECONDS_PER_MINUTE;
+    return minutes === 0 ? `${rest} sn` : `${minutes} dk ${String(rest).padStart(2, "0")} sn`;
 }
 
 /** Zaman aralığının okunur adını döner. */
@@ -278,6 +340,7 @@ function renderPager(container, page, onChange) {
 /** Çalışma modunu ve kuyruk durumunu günceller; sağlık yanıtını döner. */
 async function refreshHealth() {
     const health = await api("/health");
+    state.mode = health.mode;
 
     const modeBadge = byId("mode-badge");
     modeBadge.textContent = MODE_LABELS[health.mode] || health.mode;
@@ -369,7 +432,7 @@ async function refreshJobs() {
             job.id,
             badge(JOB_STATUS_LABELS[job.status] || job.status, job.status),
             progressText(job),
-            formatGeo(job.geo),
+            job.geo || WORLDWIDE_LABEL,
             formatTimeframe(job.timeframe),
             formatDate(job.created_at),
         ]);
@@ -400,13 +463,10 @@ async function createJob() {
     }
     // Ürün listesi hazır
 
-    // Boş bırakılan alanlar gönderilmez; sunucu kendi varsayılanını kullanır
-    const body = { keywords };
-    const geo = byId("job-geo").value.trim();
+    // Ülke her zaman gönderilir (boş değer = tüm dünya); zaman aralığı seçilmediyse sunucu
+    // kendi varsayılanını kullanır
+    const body = { keywords, geo: byId("job-geo").value };
     const timeframe = byId("job-timeframe").value;
-    if (geo !== "") {
-        body.geo = geo;
-    }
     if (timeframe !== "") {
         body.timeframe = timeframe;
     }
@@ -437,7 +497,73 @@ async function deleteJob(jobId) {
 function closeJobDetail() {
     state.selectedJobId = null;
     state.selectedJobStatus = null;
+    state.activeJob = null;
+    state.progressKey = null;
     byId("job-detail").hidden = true;
+}
+
+// --- Çalışma göstergesi ---
+
+/** Süren taramada o an ne yapıldığını anlatan başlığı üretir. */
+function activityTitle(job) {
+    if (job.status === "pending") {
+        return job.queue_position ? `Sırada bekliyor: önünde ${job.queue_position} tarama var` : "Sırada: birazdan başlayacak";
+    }
+    // Ürünler sırayla işlenir; henüz bekleyen ilk ürün şu an taranandır
+    const current = job.keywords.find((item) => item.status === "pending");
+    if (!current) {
+        return "Tarama tamamlanıyor…";
+    }
+    return `Taranıyor: ${current.keyword} (${job.processed_keywords + 1}/${job.total_keywords})`;
+}
+
+/** Duruma göre açıklamayı seçer: sırada, örnek veri, gerçek tarama veya hız sınırı beklemesi. */
+function activityHint(job) {
+    if (job.status === "pending") {
+        return ACTIVITY_HINTS.pending;
+    }
+    if (state.mode !== "live") {
+        return ACTIVITY_HINTS.mock;
+    }
+    const keywordSeconds = (Date.now() - state.progressChangedAt) / MS_PER_SECOND;
+    return keywordSeconds > SLOW_KEYWORD_SECONDS ? ACTIVITY_HINTS.slow : ACTIVITY_HINTS.live;
+}
+
+/**
+ * Geçen süreyi ve açıklamayı yeniler. Sunucudan yeni veri gelmese de her saniye çalışır;
+ * böylece uzun süren bir üründe sayfanın donmadığı görülür.
+ */
+function renderActivityTiming() {
+    const job = state.activeJob;
+    if (job === null) {
+        return;
+    }
+    const since = new Date(job.started_at || job.created_at).getTime();
+    byId("activity-elapsed").textContent = formatDuration((Date.now() - since) / MS_PER_SECOND);
+    byId("activity-hint").textContent = activityHint(job);
+}
+
+/** Seçili tarama sürüyorsa çalışma göstergesini gösterir ve günceller, bittiyse gizler. */
+function updateActivity(job) {
+    const active = ACTIVE_STATUSES.includes(job.status);
+    byId("detail-activity").hidden = !active;
+    byId("detail-progress").classList.toggle("active", job.status === "running");
+    state.activeJob = active ? job : null;
+    if (!active) {
+        state.progressKey = null;
+        return;
+    }
+
+    // İlerleme değiştiğinde (ör. sıradaki ürüne geçildiğinde) ürün süresi yeniden başlar
+    const progressKey = `${job.id}:${job.status}:${job.processed_keywords}`;
+    if (state.progressKey !== progressKey) {
+        state.progressKey = progressKey;
+        state.progressChangedAt = Date.now();
+    }
+    // Ürün süresi güncel
+
+    byId("activity-title").textContent = activityTitle(job);
+    renderActivityTiming();
 }
 
 /** Sonuç filtrelerini başlangıç değerlerine döndürür. */
@@ -450,6 +576,7 @@ function resetResultFilters() {
 async function selectJob(jobId) {
     state.selectedJobId = jobId;
     state.selectedJobStatus = null;
+    state.activeJob = null;
     resetResultFilters();
     byId("results-keyword").replaceChildren(el("option", { text: "Hepsi", attrs: { value: "" } }));
     showView("jobs");
@@ -499,6 +626,7 @@ async function refreshSelectedJob() {
     ].join("  ·  ");
     const percent = job.total_keywords === 0 ? 0 : (job.processed_keywords / job.total_keywords) * FULL_PERCENT;
     byId("detail-progress-bar").style.width = `${percent}%`;
+    updateActivity(job);
     // Başlık çizildi
 
     // İş seviyesindeki hata (normalde boş)
@@ -512,15 +640,21 @@ async function refreshSelectedJob() {
     csvLink.href = `/jobs/${job.id}/export.csv`;
     csvLink.setAttribute("download", `trendradar_job_${job.id}.csv`);
 
-    // Ürün bazında özet
+    // Ürün bazında özet. Ürünler sırayla işlendiği için, çalışan taramada henüz bekleyen ilk ürün
+    // o an taranandır; "Bekliyor" yerine "Taranıyor" olarak gösterilir
+    const scanning = job.status === "running" ? job.keywords.find((item) => item.status === "pending") : undefined;
     const keywordsBody = byId("detail-keywords");
     keywordsBody.replaceChildren();
     for (const item of job.keywords) {
+        const statusBadge =
+            item === scanning
+                ? badge(SCANNING_LABEL, "running")
+                : badge(KEYWORD_STATUS_LABELS[item.status] || item.status, item.status);
         keywordsBody.append(
             tableRow(
                 [
                     item.keyword,
-                    badge(KEYWORD_STATUS_LABELS[item.status] || item.status, item.status),
+                    statusBadge,
                     item.top_count,
                     item.rising_count,
                     item.error_message || "",
@@ -575,8 +709,14 @@ async function loadResults() {
         );
     }
 
-    byId("results-summary").textContent =
-        page.total === 0 ? "Bu filtrelerle sonuç yok." : `${formatNumber(page.total)} sonuç`;
+    // Sonuç yoksa nedeni yazılır: tarama henüz sürüyor olabilir veya filtreler hiçbir kaydı tutmuyordur
+    let summary = `${formatNumber(page.total)} sonuç`;
+    if (page.total === 0) {
+        summary = ACTIVE_STATUSES.includes(state.selectedJobStatus)
+            ? "Henüz sonuç yok; ürünler tarandıkça burada görünecek."
+            : "Bu filtrelerle sonuç yok.";
+    }
+    byId("results-summary").textContent = summary;
     renderPager(byId("results-pager"), page, (offset) => {
         state.resultsOffset = offset;
         guarded(loadResults);
@@ -892,8 +1032,22 @@ function onSubmit(formId, action) {
     });
 }
 
+/** Ülke seçimini doldurur: önce en sık seçilen ülke, sonra diğerleri Türkçe ada göre sıralı. */
+function fillCountryOptions() {
+    const countries = COUNTRY_CODES.filter((code) => code !== PINNED_COUNTRY_CODE)
+        .map((code) => ({ code, name: countryName(code) }))
+        .sort((a, b) => a.name.localeCompare(b.name, LOCALE));
+    countries.unshift({ code: PINNED_COUNTRY_CODE, name: countryName(PINNED_COUNTRY_CODE) });
+
+    const select = byId("job-geo");
+    for (const country of countries) {
+        select.append(el("option", { text: `${country.name} (${country.code})`, attrs: { value: country.code } }));
+    }
+}
+
 /** Olayları bağlar ve ilk veriyi yükler. */
 function init() {
+    fillCountryOptions();
     for (const tab of document.querySelectorAll(".tab")) {
         tab.addEventListener("click", () => openView(tab.dataset.view));
     }
@@ -915,6 +1069,9 @@ function init() {
         resetResultFilters();
         guarded(loadResults);
     });
+
+    // Süren taramada geçen süre her saniye yenilenir
+    setInterval(renderActivityTiming, ELAPSED_TICK_MS);
 
     guarded(tick);
 }

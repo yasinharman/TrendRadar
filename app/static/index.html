@@ -41,9 +41,11 @@
                 <textarea id="job-keywords" rows="6" required
                           placeholder="Camera Bags&#10;Backpacks&#10;Tote Bags"></textarea>
 
-                <label for="job-geo">Ülke kodu</label>
-                <input id="job-geo" type="text" maxlength="2" placeholder="TR" autocomplete="off">
-                <p class="hint">2 harf. Boş bırakılırsa sunucunun varsayılanı kullanılır.</p>
+                <label for="job-geo">Ülke</label>
+                <!-- Ülkeler betikle eklenir (adlar tarayıcının Türkçe ülke adlarından gelir) -->
+                <select id="job-geo">
+                    <option value="">Tüm dünya</option>
+                </select>
 
                 <label for="job-timeframe">Zaman aralığı</label>
                 <select id="job-timeframe">
@@ -92,7 +94,20 @@
                 <a id="detail-csv" class="button" hidden>CSV indir</a>
             </div>
             <p id="detail-meta" class="muted"></p>
-            <div class="progress" aria-hidden="true"><div id="detail-progress-bar" class="progress-bar"></div></div>
+            <div id="detail-progress" class="progress" aria-hidden="true">
+                <div id="detail-progress-bar" class="progress-bar"></div>
+            </div>
+
+            <!-- Tarama sürerken görünür: uygulamanın çalıştığını ve o an ne yaptığını gösterir -->
+            <div id="detail-activity" class="activity" hidden>
+                <span class="spinner" aria-hidden="true"></span>
+                <div class="activity-text">
+                    <p id="activity-title" class="activity-title" role="status"></p>
+                    <p id="activity-hint" class="muted"></p>
+                </div>
+                <span id="activity-elapsed" class="activity-elapsed" aria-hidden="true"></span>
+            </div>
+
             <p id="detail-error" class="error-text" hidden></p>
 
             <h3>Ürünler</h3>
